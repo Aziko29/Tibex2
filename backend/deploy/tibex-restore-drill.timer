@@ -1,7 +1,10 @@
 [Unit]
-Description=TIBEX restore drill — oyiga 1 marta
+Description=Monthly TIBEX restore drill
+
 [Timer]
 OnCalendar=monthly
 Persistent=true
+Unit=tibex-restore-drill.service
+
 [Install]
 WantedBy=timers.target

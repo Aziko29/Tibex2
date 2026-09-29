@@ -20,8 +20,11 @@
 ## Kalit yo'qolsa
 Master kalit yo'qolsa shifrlangan PHI ustunlari **qaytarilmaydi**. Shuning uchun kalitlar zaxira nusxadan alohida saqlanadi (`BACKUP.md`, escrow).
 
-## Rejalashtirilgan ishlar
-`tibex-cleanup.timer` (kunlik, `scripts/cleanup.py`), `tibex-restore-drill.timer` (oylik).
+## systemd units
 ```
-cp deploy/tibex-cleanup.* /etc/systemd/system/ && systemctl enable --now tibex-cleanup.timer
+sudo cp backend/deploy/tibex-cleanup.{service,timer} /etc/systemd/system/
+sudo cp backend/deploy/tibex-restore-drill.{service,timer} /etc/systemd/system/
+sudo cp backend/deploy/tibex-logrotate /etc/logrotate.d/tibex
+sudo systemctl daemon-reload
+sudo systemctl enable --now tibex-cleanup.timer tibex-restore-drill.timer
 ```

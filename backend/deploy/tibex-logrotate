@@ -1,9 +1,22 @@
-/var/log/tibex/*.log {
-    daily
-    rotate 14
+/var/log/tibex-backup.log {
+    weekly
+    rotate 12
     compress
     delaycompress
     missingok
     notifempty
-    copytruncate
+    create 0640 tibex tibex
+}
+
+/var/log/nginx/tibex-*.log {
+    daily
+    rotate 30
+    compress
+    delaycompress
+    missingok
+    notifempty
+    sharedscripts
+    postrotate
+        [ -f /run/nginx.pid ] && kill -USR1 $(cat /run/nginx.pid)
+    endscript
 }

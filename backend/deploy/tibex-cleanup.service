@@ -1,8 +1,30 @@
 [Unit]
-Description=TIBEX eski yozuvlarni tozalash
+Description=TIBEX daily cleanup (sessions, login_attempts, otp_codes)
+Documentation=file:/opt/tibex/backend/docs/OPERATIONS.md
+After=postgresql.service
+
 [Service]
 Type=oneshot
 User=tibex
+Group=tibex
 WorkingDirectory=/opt/tibex/backend
-EnvironmentFile=/etc/tibex/backup.env
-ExecStart=/opt/tibex/backend/venv/bin/python -m scripts.cleanup
+EnvironmentFile=/opt/tibex/backend/.env.public
+Environment=TIBEX_ENV=production
+Environment=TIBEX_DATABASE_URL_FILE=/opt/tibex/backend/secrets/database_url.txt
+Environment=TIBEX_REDIS_URL_FILE=/opt/tibex/backend/secrets/redis_url.txt
+Environment=TIBEX_SECRET_KEY_FILE=/opt/tibex/backend/secrets/secret_key.txt
+Environment=TIBEX_MASTER_KEY_B64_FILE=/opt/tibex/backend/secrets/master_key_b64.txt
+Environment=TIBEX_MASTER_KEYS_FILE=/opt/tibex/backend/secrets/master_keys.json
+Environment=TIBEX_BLIND_INDEX_KEY_B64_FILE=/opt/tibex/backend/secrets/blind_index_key_b64.txt
+Environment=TIBEX_PASSWORD_PEPPER_FILE=/opt/tibex/backend/secrets/password_pepper.txt
+ExecStart=/opt/tibex/backend/.venv/bin/python -m scripts.cleanup
+StandardOutput=journal
+StandardError=journal
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+ReadWritePaths=-/opt/tibex/backend/backups
