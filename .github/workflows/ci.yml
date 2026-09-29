@@ -27,6 +27,11 @@ jobs:
       - run: python -m pyflakes app scripts
       - run: bandit -r app -ll
       - run: pip-audit -r requirements.lock
+      - name: Secret scan
+        working-directory: backend
+        run: |
+          pip install 'detect-secrets==1.5.0'
+          detect-secrets scan --baseline .secrets.baseline
       - run: pytest -q --cov=app
       - name: Alembic upgrade/downgrade/check
         run: |
@@ -42,8 +47,3 @@ jobs:
         with: { node-version: 20 }
       - run: npm i --no-save eslint@8 eslint-plugin-no-unsanitized
       - run: npx eslint -c frontend/.eslintrc.json "frontend/static/**/*.js" "frontend/*.js" --ignore-pattern "**/vendor/**"
-  secrets:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: pip install detect-secrets && detect-secrets scan --baseline .secrets.baseline || detect-secrets scan
