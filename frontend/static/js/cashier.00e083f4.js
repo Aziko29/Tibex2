@@ -59,7 +59,7 @@ function renderPaymentIntegrations() {
   box.innerHTML = payments.map(p => {
     const dot = p.status === 'connected' ? 'ok' : p.status === 'error' ? 'err' : 'warn';
     const label = p.status === 'connected' ? 'Ulangan' : p.status === 'error' ? 'Xatolik' : p.status === 'pending' ? 'Kutilmoqda' : 'Uzilgan';
-    return `<div class="integr-row" title="${esc(p.name)} · ${p.provider || ''}">
+    return `<div class="integr-row" title="${esc(p.name)} · ${escAttr(p.provider || '')}">
       <span class="name"><span class="dot ${dot}"></span><span>${esc(p.name)}</span></span>
       <span class="label ${dot}">${label}</span>
     </div>`;
@@ -82,7 +82,7 @@ function renderServicesSidebar() {
   });
   box.innerHTML = Object.entries(grouped).map(([cat, list]) => `
     <div style="margin-bottom:6px;">
-      <div style="font-weight:700;font-size:10.5px;text-transform:uppercase;color:var(--dim);margin-bottom:4px;">${cat}</div>
+      <div style="font-weight:700;font-size:10.5px;text-transform:uppercase;color:var(--dim);margin-bottom:4px;">${esc(cat)}</div>
       ${list.map(s => `<div style="display:flex;justify-content:space-between;padding:2px 0;font-size:11.5px;">
         <span>${esc(s.name)}</span>
         <span style="font-family:ui-monospace;font-weight:600;color:var(--gold);">${fmtMoney(s.price)}</span>
@@ -265,7 +265,7 @@ function updateSidebar() {
     byDoctor[appt.doctor_name].total += p.amount;
   });
   document.getElementById('reportDoctorsBody').innerHTML = Object.entries(byDoctor).map(([n, d]) =>
-    `<tr><td><b>${n}</b></td><td style="text-align:right;" class="amount">${d.count}</td><td style="text-align:right;" class="amount paid">${fmtMoney(d.total)}</td></tr>`
+    `<tr><td><b>${esc(n)}</b></td><td style="text-align:right;" class="amount">${d.count}</td><td style="text-align:right;" class="amount paid">${fmtMoney(d.total)}</td></tr>`
   ).join('') || '<tr><td colspan="3" style="text-align:center;padding:20px;color:var(--dim);">Ma\'lumot yo\'q</td></tr>';
 
   // Report methods
@@ -324,9 +324,9 @@ function renderPending() {
     const status = a.paid === 0 ? 'unpaid' : a.paid > 0 && a.debt > 0 ? 'partial' : 'paid';
     const statusLabel = status === 'unpaid' ? "To'lanmagan" : status === 'partial' ? 'Qismiy' : "To'langan";
     return `<tr data-id="${a.id}" class="${isUrgent ? 'urgent-row' : ''} ${a.id === state.selectedApptId ? 'selected' : ''}">
-      <td class="time-col">${a.scheduled_time}</td>
+      <td class="time-col">${esc(a.scheduled_time)}</td>
       <td>
-        <div class="patient-name">${esc(p.fullname)} ${isUrgent ? `<span class="priority ${a.priority}">${a.priority === 'stat' ? 'STAT' : 'SHOSHILINCH'}</span>` : ''}</div>
+        <div class="patient-name">${esc(p.fullname)} ${isUrgent ? `<span class="priority ${escAttr(a.priority)}">${a.priority === 'stat' ? 'STAT' : 'SHOSHILINCH'}</span>` : ''}</div>
         <div class="patient-sub">${esc(p.phone)} · Qabul #${a.id}</div>
       </td>
       <td>${esc(a.service.name)}</td>
@@ -430,7 +430,7 @@ function renderDebtors() {
     return `<tr data-id="${a.id}">
       <td><div class="patient-name">${esc(p.fullname)}</div><div class="patient-sub">Qabul #${a.id} · ${esc(a.doctor_name)}</div></td>
       <td class="time-col">${esc(p.phone)}</td>
-      <td class="time-col">${a.date}</td>
+      <td class="time-col">${esc(a.date)}</td>
       <td style="text-align:right;"><div class="amount debt">${fmtMoney(a.debt)}</div></td>
       <td>
         <div class="row-actions">
@@ -468,7 +468,7 @@ function renderAudit() {
   document.getElementById('auditBody').innerHTML = audit.map(a => `
     <div style="padding:10px 16px;border-bottom:1px solid #f1f5f9;display:flex;gap:12px;align-items:flex-start;font-size:12.5px;">
       <div class="time-col" style="width:70px;flex-shrink:0;">${fmtDateTime(a.ts)}</div>
-      <span style="font-size:10px;padding:2px 8px;border-radius:6px;font-weight:700;flex-shrink:0;background:${a.action === 'payment' ? 'var(--ok-tint)' : a.action === 'refund' ? 'var(--info-tint)' : a.action === 'shift' ? 'var(--gold-tint)' : '#f1f5f9'};color:${a.action === 'payment' ? '#166534' : a.action === 'refund' ? '#0c4a6e' : a.action === 'shift' ? '#854d0e' : '#475569'};">${a.action.toUpperCase()}</span>
+      <span style="font-size:10px;padding:2px 8px;border-radius:6px;font-weight:700;flex-shrink:0;background:${a.action === 'payment' ? 'var(--ok-tint)' : a.action === 'refund' ? 'var(--info-tint)' : a.action === 'shift' ? 'var(--gold-tint)' : '#f1f5f9'};color:${a.action === 'payment' ? '#166534' : a.action === 'refund' ? '#0c4a6e' : a.action === 'shift' ? '#854d0e' : '#475569'};">${esc(a.action.toUpperCase())}</span>
       <div style="flex:1;min-width:0;">
         <div><b>${esc(a.user)}</b> · <span style="color:var(--muted);font-size:11.5px;">${esc(a.role)}</span></div>
         <div style="color:var(--muted);font-size:11.5px;margin-top:2px;">${esc(a.detail)}</div>
@@ -500,7 +500,7 @@ function selectAppointment(id) {
         <div class="avatar">${esc(initials(p.fullname))}</div>
         <div>
           <div class="name">${esc(p.fullname)}</div>
-          <div class="meta">${p.age} yosh · ${p.gender} · ${p.blood}</div>
+          <div class="meta">${p.age} yosh · ${esc(p.gender)} · ${esc(p.blood)}</div>
         </div>
       </div>
       <div class="badges">
@@ -517,7 +517,7 @@ function selectAppointment(id) {
       <div class="detail-head" data-toggle="detail"><span>📋 Qabul ma'lumotlari</span><span class="chev">▸</span></div>
       <div class="detail-body">
         <div class="detail-row"><span class="k">Qabul #</span><span class="v mono">${appt.id}</span></div>
-        <div class="detail-row"><span class="k">Vaqt</span><span class="v mono">${appt.scheduled_time}</span></div>
+        <div class="detail-row"><span class="k">Vaqt</span><span class="v mono">${esc(appt.scheduled_time)}</span></div>
         <div class="detail-row"><span class="k">Shifokor</span><span class="v">${esc(appt.doctor_name)}</span></div>
         <div class="detail-row"><span class="k">Xizmat</span><span class="v">${esc(appt.service.name)}</span></div>
         <div class="detail-row"><span class="k">Narx</span><span class="v mono">${fmtMoney(appt.service.price)}</span></div>

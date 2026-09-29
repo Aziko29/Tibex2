@@ -64,7 +64,7 @@ function renderEquipmentSidebar() {
   }
   box.innerHTML = equip.map(e => {
     const info = equipmentStatusInfo(e.status);
-    return `<div class="equipment-row" title="${e.manufacturer || ''} ${e.model || ''} · ${e.location || ''}">
+    return `<div class="equipment-row" title="${escAttr(e.manufacturer || '')} ${escAttr(e.model || '')} · ${escAttr(e.location || '')}">
       <span class="name"><span class="dot ${info.dot}"></span><span>${esc(e.name)}</span></span>
       <span class="label ${info.cls}">${info.label}</span>
     </div>`;
@@ -88,13 +88,13 @@ function renderReagentsSidebar() {
     let expiryTag = '';
     if (expiryDays !== null && expiryDays < 0) expiryTag = '<span class="expiry-warn danger">MUDDAT O\'TGAN</span>';
     else if (expiryDays !== null && expiryDays < 30) expiryTag = `<span class="expiry-warn warn">${expiryDays}k</span>`;
-    return `<div class="reagent-row" title="${r.category || ''} · ${r.supplier || ''}">
+    return `<div class="reagent-row" title="${escAttr(r.category || '')} · ${escAttr(r.supplier || '')}">
       <div class="top">
         <span class="name">${esc(r.name)}${expiryTag}</span>
         <span class="count ${cls}">${pct}%</span>
       </div>
       <div class="progress-bar"><div class="fill ${cls}" style="width:${pct}%"></div></div>
-      <div class="meta">${r.stock} / ${r.min_stock} ${r.unit}${r.lot ? ' · ' + r.lot : ''}</div>
+      <div class="meta">${r.stock} / ${r.min_stock} ${esc(r.unit)}${r.lot ? ' · ' + esc(r.lot) : ''}</div>
     </div>`;
   }).join('');
 }
@@ -111,7 +111,7 @@ function renderIntegrations() {
   }
   box.innerHTML = devices.map(d => {
     const color = d.status === 'connected' ? '#4ade80' : d.status === 'error' ? '#ef4444' : d.status === 'pending' ? '#fbbf24' : '#475569';
-    return `<span title="${esc(d.name)} — ${d.provider || ''} (${esc(d.status)})" style="color:${color};cursor:help;">🔬</span>`;
+    return `<span title="${esc(d.name)} — ${escAttr(d.provider || '')} (${esc(d.status)})" style="color:${color};cursor:help;">🔬</span>`;
   }).join('');
 }
 
@@ -132,7 +132,7 @@ function renderQC() {
     const statusCls = e.status === 'working' ? 'verified' : e.status === 'broken' ? 'urgent' : 'ready';
     const statusLbl = e.status === 'working' ? '✓ OK' : e.status === 'broken' ? '⚠ Nosoz' : info.label;
     return `<tr>
-      <td><b>${esc(e.name)}</b><div style="font-size:11px;color:var(--dim);">${e.location || ''}</div></td>
+      <td><b>${esc(e.name)}</b><div style="font-size:11px;color:var(--dim);">${esc(e.location || '')}</div></td>
       <td>${esc(info.icon)} ${e.status === 'calibration' ? 'Kalibrovka' : 'Normal'}</td>
       <td class="time-col">${e.status === 'working' ? '6.5' : '—'}</td>
       <td class="time-col">${e.status === 'working' ? '6.4' : '—'}</td>
@@ -165,12 +165,12 @@ function openAnalyzersModal() {
         </div>
         <div class="detail-body">
           <div class="detail-row"><span class="k">Kategoriya</span><span class="v">${esc(e.category)}</span></div>
-          <div class="detail-row"><span class="k">Joylashuv</span><span class="v">${e.location || '—'}</span></div>
-          <div class="detail-row"><span class="k">Ishlab chiqaruvchi</span><span class="v">${e.manufacturer || '—'} ${e.model || ''}</span></div>
-          <div class="detail-row"><span class="k">Seriya</span><span class="v mono">${e.serial || '—'}</span></div>
+          <div class="detail-row"><span class="k">Joylashuv</span><span class="v">${esc(e.location || '—')}</span></div>
+          <div class="detail-row"><span class="k">Ishlab chiqaruvchi</span><span class="v">${esc(e.manufacturer || '—')} ${esc(e.model || '')}</span></div>
+          <div class="detail-row"><span class="k">Seriya</span><span class="v mono">${esc(e.serial || '—')}</span></div>
           <div class="detail-row"><span class="k">Oxirgi xizmat</span><span class="v mono">${esc(e.last_service || '—')}</span></div>
           <div class="detail-row"><span class="k">Keyingi xizmat</span><span class="v ${daysToService !== null && daysToService < 30 ? 'danger' : ''} mono">${esc(e.next_service || '—')}${daysToService !== null ? ' (' + (daysToService >= 0 ? daysToService + ' kun' : Math.abs(daysToService) + ' kun o\'tdi') + ')' : ''}</span></div>
-          <div class="detail-row"><span class="k">Integratsiya</span><span class="v">${linkedIntegr ? (linkedIntegr.status === 'connected' ? '✅ Ulangan' : '⚠ ' + linkedIntegr.status) : '—'}</span></div>
+          <div class="detail-row"><span class="k">Integratsiya</span><span class="v">${linkedIntegr ? (linkedIntegr.status === 'connected' ? '✅ Ulangan' : '⚠ ' + esc(linkedIntegr.status)) : '—'}</span></div>
         </div>
       </div>`;
     }).join('');
@@ -305,12 +305,12 @@ function renderIncoming() {
       <td class="time-col">${fmtTime(o.created_at)}</td>
       <td><span class="barcode">${o.id}</span></td>
       <td>
-        <div class="patient-name">${esc(p.fullname)} ${isUrgent ? `<span class="priority ${o.priority}">${o.priority.toUpperCase()}</span>` : ''}</div>
-        <div class="patient-sub">${esc(p.phone)} · ${p.age} yosh · ${p.gender}</div>
+        <div class="patient-name">${esc(p.fullname)} ${isUrgent ? `<span class="priority ${escAttr(o.priority)}">${esc(o.priority.toUpperCase())}</span>` : ''}</div>
+        <div class="patient-sub">${esc(p.phone)} · ${p.age} yosh · ${esc(p.gender)}</div>
       </td>
       <td><div class="test-name">${esc(o.test_name)}</div><div class="test-sub">${esc(o.test_key)}</div></td>
       <td class="doctor-name" style="color:var(--muted);">${esc(o.ordered_by)}</td>
-      <td><span class="status ${statusClass(o.status)}">${statusLabel(o.status)}</span></td>
+      <td><span class="status ${statusClass(o.status)}">${esc(statusLabel(o.status))}</span></td>
       <td><div class="row-actions">
         ${actionHtml}
         <button data-act="view">👁</button>
@@ -332,7 +332,7 @@ function renderProcessing() {
     const isUrgent = o.priority === 'urgent' || o.priority === 'stat';
     return `<tr data-id="${o.id}" class="${isUrgent ? 'urgent-row' : ''}">
       <td><span class="barcode">${o.id}</span></td>
-      <td><div class="patient-name">${esc(p.fullname)} ${isUrgent ? `<span class="priority ${o.priority}">${o.priority.toUpperCase()}</span>` : ''}</div><div class="patient-sub">${esc(p.phone)}</div></td>
+      <td><div class="patient-name">${esc(p.fullname)} ${isUrgent ? `<span class="priority ${escAttr(o.priority)}">${esc(o.priority.toUpperCase())}</span>` : ''}</div><div class="patient-sub">${esc(p.phone)}</div></td>
       <td><div class="test-name">${esc(o.test_name)}</div><div class="test-sub">${esc(o.test_key)}</div></td>
       <td class="time-col">${fmtTime(o.started_at || o.created_at)}</td>
       <td><span class="status processing">Analizda</span></td>
@@ -474,7 +474,7 @@ function selectOrder(id) {
     if (def && order.result_data) {
       resultRows = def.params.map(prm => {
         const val = order.result_data[prm.code] || '—';
-        return `<div class="detail-row"><span class="k">${esc(prm.name)}</span><span class="v mono">${val} ${prm.unit}</span></div>`;
+        return `<div class="detail-row"><span class="k">${esc(prm.name)}</span><span class="v mono">${esc(val)} ${esc(prm.unit)}</span></div>`;
       }).join('');
     }
   }
@@ -486,7 +486,7 @@ function selectOrder(id) {
         <div class="avatar">${esc(initials(p.fullname))}</div>
         <div>
           <div class="name">${esc(p.fullname)}</div>
-          <div class="meta">${p.age} yosh · ${p.gender} · ${esc(p.phone)}</div>
+          <div class="meta">${p.age} yosh · ${esc(p.gender)} · ${esc(p.phone)}</div>
         </div>
       </div>
       <div class="tags">${tags.join('')}</div>
@@ -499,7 +499,7 @@ function selectOrder(id) {
         <div class="detail-row"><span class="k">Tahlil</span><span class="v">${esc(order.test_name)}</span></div>
         <div class="detail-row"><span class="k">Kod</span><span class="v mono">${esc(order.test_key)}</span></div>
         <div class="detail-row"><span class="k">Muhimlik</span><span class="v ${isUrgent ? 'danger' : 'ok'}">${order.priority === 'stat' ? '🔴 STAT' : order.priority === 'urgent' ? '🟠 Shoshilinch' : '🟢 Normal'}</span></div>
-        <div class="detail-row"><span class="k">Holat</span><span class="v"><span class="status ${statusClass(order.status)}" style="font-size:10px;">${statusLabel(order.status)}</span></span></div>
+        <div class="detail-row"><span class="k">Holat</span><span class="v"><span class="status ${statusClass(order.status)}" style="font-size:10px;">${esc(statusLabel(order.status))}</span></span></div>
         <div class="detail-row"><span class="k">So'rov vaqti</span><span class="v mono">${fmtTime(order.created_at)}</span></div>
         <div class="detail-row"><span class="k">Shifokor</span><span class="v">${esc(order.ordered_by)}</span></div>
       </div>
@@ -514,7 +514,7 @@ function selectOrder(id) {
     <div class="detail-block collapsed">
       <div class="detail-head" data-toggle="detail"><span>👤 Bemor ma'lumotlari</span><span class="chev">▸</span></div>
       <div class="detail-body">
-        <div class="detail-row"><span class="k">Qon guruhi</span><span class="v">${p.blood}</span></div>
+        <div class="detail-row"><span class="k">Qon guruhi</span><span class="v">${esc(p.blood)}</span></div>
         ${p.allergies?.length ? `<div class="detail-row"><span class="k">Allergiya</span><span class="v danger">${esc(p.allergies.join(', '))}</span></div>` : ''}
         ${p.chronic?.length ? `<div class="detail-row"><span class="k">Surunkali</span><span class="v">${esc(p.chronic.join(', '))}</span></div>` : ''}
       </div>
@@ -545,9 +545,9 @@ function openResultModal(orderId) {
     const val = existingResults[prm.code] || '';
     return `<tr data-param="${esc(prm.code)}">
       <td><div class="param">${esc(prm.name)}</div><div class="param-code">${esc(prm.code)}</div></td>
-      <td class="unit">${prm.unit}</td>
-      <td class="ref">${prm.ref}</td>
-      <td><input class="value-input" value="${val}" data-param="${esc(prm.code)}" data-ref="${prm.ref}"></td>
+      <td class="unit">${esc(prm.unit)}</td>
+      <td class="ref">${esc(prm.ref)}</td>
+      <td><input class="value-input" value="${escAttr(val)}" data-param="${esc(prm.code)}" data-ref="${escAttr(prm.ref)}"></td>
       <td class="flag"></td>
     </tr>`;
   }).join('');
@@ -557,7 +557,7 @@ function openResultModal(orderId) {
       <div style="font-weight:700; color:#991b1b; font-size:13px;">🔴 ${order.priority === 'stat' ? 'STAT' : 'SHOSHILINCH'} — ${esc(def.name)}</div>
       <div style="font-size:11.5px; color:#7f1d1d; margin-top:2px;">${esc(p.fullname)} · ${esc(order.ordered_by)}</div>
     </div>` : `<div style="padding:8px 0 12px; font-size:12.5px; color:var(--muted);">${esc(p.fullname)} · ${esc(order.ordered_by)}</div>`}
-    <div class="panel-group" style="margin:0 -20px 12px;"><span>${def.panel}</span></div>
+    <div class="panel-group" style="margin:0 -20px 12px;"><span>${esc(def.panel)}</span></div>
     <table class="result-table">
       <thead><tr>
         <th>Ko'rsatkich</th><th style="width:100px;">Birlik</th>

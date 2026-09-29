@@ -325,7 +325,7 @@
       var sel = document.querySelector(".sc9-cam-sel");
       if (sel) {
         sel.innerHTML = _cameras.map(function (c, i) {
-          return '<option value="' + c.deviceId + '">' + escapeHtml(c.label || ("Kamera " + (i + 1))) + '</option>';
+          return '<option value="' + escapeHtml(c.deviceId) + '">' + escapeHtml(c.label || ("Kamera " + (i + 1))) + '</option>';
         }).join("");
         if (_cameras.length > 0 && !_selectedCameraId) {
           var back = _cameras.find(function (c) { return /back|rear|environment/i.test(c.label); });

@@ -104,14 +104,14 @@ function renderQueue() {
     actions += '<button data-act="history">📋 Tarix</button>';
 
     return `<tr data-id="${a.id}">
-      <td class="time-col">${a.scheduled_time || "—"}</td>
-      <td>${isUrgent ? `<span class="priority-badge ${a.priority}">${priorityLabel(a.priority)}</span>` : "—"}</td>
+      <td class="time-col">${esc(a.scheduled_time || "—")}</td>
+      <td>${isUrgent ? `<span class="priority-badge ${escAttr(a.priority)}">${esc(priorityLabel(a.priority))}</span>` : "—"}</td>
       <td><div style="display:flex;align-items:center;gap:8px;">
         <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0;">${esc(initials(p.fullname))}</div>
         <div><div style="font-weight:600;">${esc(p.fullname)}</div><div style="font-size:11px;color:var(--dim);">#${p.id} · ${p.age} yosh · ${esc(p.phone || "")}</div></div>
       </div></td>
       <td style="font-size:12px;">${esc(a.service?.name || "—")}</td>
-      <td><span class="status ${a.status}">${statusLabel(a.status)}</span></td>
+      <td><span class="status ${escAttr(a.status)}">${esc(statusLabel(a.status))}</span></td>
       <td><div class="row-actions">${actions}</div></td>
     </tr>`;
   }).join("");
@@ -281,11 +281,11 @@ function renderHistory() {
     if (!p) return "";
     const dx = a.final_dx || a.prelim_dx || "—";
     return `<tr data-id="${a.id}">
-      <td class="time-col">${a.date}</td>
-      <td class="time-col">${a.scheduled_time || "—"}</td>
+      <td class="time-col">${esc(a.date)}</td>
+      <td class="time-col">${esc(a.scheduled_time || "—")}</td>
       <td><b>${esc(p.fullname)}</b></td>
       <td style="font-size:12px;color:var(--primary);">${esc(dx)}</td>
-      <td><span class="status ${a.status}">${statusLabel(a.status)}</span></td>
+      <td><span class="status ${escAttr(a.status)}">${esc(statusLabel(a.status))}</span></td>
       <td><div class="row-actions"><button data-act="view">👁 Ko\'rish</button></div></td>
     </tr>`;
   }).join("");
@@ -423,7 +423,7 @@ function openVisit(id, readonly = false) {
             return `<div style="padding:8px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;background:#fff;">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
                 <b>${esc(l.test_name)}</b>
-                ${statusMap[l.status] || l.status}
+                ${esc(statusMap[l.status] || l.status)}
               </div>
               ${l.result_summary ? `<div style="font-size:12px;color:var(--primary);margin-top:4px;">📊 ${esc(l.result_summary)}</div>` : ''}
               ${l.result_note ? `<div style="font-size:11.5px;color:var(--muted);margin-top:2px;">📝 ${esc(l.result_note)}</div>` : ''}
@@ -606,7 +606,7 @@ function openPatientHistory(apptId) {
     <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">📋 Qabullar (${appts.length})</div>
     ${appts.map(x => `
       <div class="locked-section">
-        <div class="head"><span class="t">${x.date} ${x.scheduled_time || ""}</span><span class="status ${x.status}">${statusLabel(x.status)}</span></div>
+        <div class="head"><span class="t">${esc(x.date)} ${esc(x.scheduled_time || "")}</span><span class="status ${escAttr(x.status)}">${esc(statusLabel(x.status))}</span></div>
         <div class="row"><span class="k">Xizmat</span><span class="v">${esc(x.service?.name || "—")}</span></div>
         <div class="row"><span class="k">Tashxis</span><span class="v">${esc(x.final_dx || x.prelim_dx || "—")}</span></div>
       </div>
@@ -672,12 +672,12 @@ function renderSidebar() {
     if (!p) return "";
     const isUrgent = a.priority === "urgent" || a.priority === "stat";
     return `<div class="sb-queue-item ${isUrgent ? 'urgent' : ''}" data-appt-id="${a.id}">
-      <div class="q-time">${a.scheduled_time || "—"}</div>
+      <div class="q-time">${esc(a.scheduled_time || "—")}</div>
       <div class="q-body">
         <div class="q-name">${esc(p.fullname)}</div>
-        <div class="q-meta">${statusLabel(a.status)}${isUrgent ? ' · ' + priorityLabel(a.priority) : ''}</div>
+        <div class="q-meta">${esc(statusLabel(a.status))}${isUrgent ? ' · ' + esc(priorityLabel(a.priority)) : ''}</div>
       </div>
-      <div class="q-status ${a.status}"></div>
+      <div class="q-status ${escAttr(a.status)}"></div>
     </div>`;
   }).join("") : '<div class="sb-queue-empty">Navbat bo\'sh</div>';
 

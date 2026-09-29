@@ -259,12 +259,12 @@
         <div class="tibex-fortress-status">
           <span class="dot ${h.db?.status === 'up' ? 'ok' : 'bad'}"></span>
           <span class="name">Database</span>
-          <span class="val ${h.db?.status === 'up' ? 'ok' : 'bad'}">${h.db?.status || '?'} ${h.db?.latency_ms ? h.db.latency_ms + 'ms' : ''}</span>
+          <span class="val ${h.db?.status === 'up' ? 'ok' : 'bad'}">${esc(h.db?.status || '?')} ${h.db?.latency_ms ? h.db.latency_ms + 'ms' : ''}</span>
         </div>
         <div class="tibex-fortress-status">
           <span class="dot ${h.redis?.status === 'up' ? 'ok' : (h.redis?.status === 'down' ? 'off' : 'warn')}"></span>
           <span class="name">Redis</span>
-          <span class="val">${h.redis?.status || '?'} ${h.redis?.latency_ms ? h.redis.latency_ms + 'ms' : ''}</span>
+          <span class="val">${esc(h.redis?.status || '?')} ${h.redis?.latency_ms ? h.redis.latency_ms + 'ms' : ''}</span>
         </div>
         <div class="tibex-fortress-status">
           <span class="dot ${h.websocket?.clients > 0 ? 'ok' : 'off'}"></span>
@@ -313,8 +313,8 @@
       html += `<div class="tibex-fortress-section"><h4>⚠️ Oxirgi xatolar</h4>`;
       html += errors.slice(0, 8).map(e => `
         <div class="tibex-fortress-error">
-          <div class="path">${e.method} ${e.path}</div>
-          <div class="meta">${e.status} · ${e.type || ''} · ${timeAgo(e.ts)}</div>
+          <div class="path">${esc(e.method)} ${esc(e.path)}</div>
+          <div class="meta">${esc(e.status)} · ${esc(e.type || '')} · ${timeAgo(e.ts)}</div>
         </div>
       `).join("");
       html += `</div>`;

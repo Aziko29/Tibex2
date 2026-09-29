@@ -97,15 +97,15 @@ function renderTodayTable(appts) {
     const isUrgent = a.priority === 'urgent' || a.priority === 'stat';
     const debtCls = (a.debt||0) > 0 ? 'color:var(--danger);font-weight:700;' : 'color:var(--ok);';
     return `<tr data-id="${a.id}">
-      <td class="time-col">${a.scheduled_time || '—'}</td>
-      <td>${isUrgent ? `<span class="priority-badge ${a.priority}">${a.priority === 'stat' ? 'STAT' : 'SHOSH'}</span>` : '—'}</td>
+      <td class="time-col">${esc(a.scheduled_time || '—')}</td>
+      <td>${isUrgent ? `<span class="priority-badge ${escAttr(a.priority)}">${a.priority === 'stat' ? 'STAT' : 'SHOSH'}</span>` : '—'}</td>
       <td><div style="display:flex;align-items:center;gap:8px;">
         <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;flex-shrink:0;">${esc(initials(p.fullname))}</div>
         <div><div style="font-weight:600;">${esc(p.fullname)}</div><div style="font-size:11px;color:var(--dim);">#${p.id} · ${p.age} yosh</div></div>
       </div></td>
       <td>${esc(a.doctor_name || '—')}</td>
       <td style="font-size:12px;">${esc(a.service?.name || '—')}</td>
-      <td><span class="status ${esc(a.status)}">${statusLabel(a.status)}</span>
+      <td><span class="status ${esc(a.status)}">${esc(statusLabel(a.status))}</span>
         ${a.status === 'lab_waiting' ? '<span style="font-size:10px;color:var(--warn);margin-left:4px;">🔬</span>' : ''}
         ${a.status === 'lab_ready' ? '<span style="font-size:10px;color:var(--ok);margin-left:4px;">✅</span>' : ''}
       </td>
@@ -176,7 +176,7 @@ function renderPatients() {
     <td class="mono">${esc(p.phone || '—')}</td>
     <td class="mono">${p.age}</td>
     <td>${p.gender === 'Erkak' ? '👨' : '👩'}</td>
-    <td class="mono">${p.blood}</td>
+    <td class="mono">${esc(p.blood)}</td>
     <td><div class="row-actions">
       <button data-act="new-appt" class="success">📅 Navbat</button>
       <button data-act="history">📋 Tarix</button>
@@ -328,13 +328,13 @@ function renderAppointments() {
     if (!p) return '';
     const isUrgent = a.priority === 'urgent' || a.priority === 'stat';
     return `<tr data-id="${a.id}">
-      <td class="time-col">${a.date}</td>
-      <td class="time-col">${a.scheduled_time || '—'}</td>
-      <td>${isUrgent ? `<span class="priority-badge ${a.priority}">${a.priority === 'stat' ? 'STAT' : 'SHOSH'}</span>` : '—'}</td>
+      <td class="time-col">${esc(a.date)}</td>
+      <td class="time-col">${esc(a.scheduled_time || '—')}</td>
+      <td>${isUrgent ? `<span class="priority-badge ${escAttr(a.priority)}">${a.priority === 'stat' ? 'STAT' : 'SHOSH'}</span>` : '—'}</td>
       <td><div style="font-weight:600;">${esc(p.fullname)}</div><div style="font-size:11px;color:var(--dim);">#${p.id} · ${p.age} yosh</div></td>
       <td>${esc(a.doctor_name || '—')}</td>
       <td style="font-size:12px;">${esc(a.service?.name || '—')}</td>
-      <td><span class="status ${esc(a.status)}">${statusLabel(a.status)}</span></td>
+      <td><span class="status ${esc(a.status)}">${esc(statusLabel(a.status))}</span></td>
       <td><div class="row-actions">
         ${a.status === 'waiting' ? `<button data-act="arrive" class="success">✓ Keldi</button>` : ''}
         ${(a.status === 'lab_ready' || a.status === 'lab_waiting') ? `<button data-act="lab" title="Lab natijalar">🔬</button>` : ''}
@@ -466,8 +466,8 @@ function renderPayments() {
     const p = TIBEX_STORE.getPatient(a.patient_id);
     if (!p) return '';
     return `<tr data-id="${a.id}">
-      <td class="time-col">${a.date}</td>
-      <td class="time-col">${a.scheduled_time || '—'}</td>
+      <td class="time-col">${esc(a.date)}</td>
+      <td class="time-col">${esc(a.scheduled_time || '—')}</td>
       <td><b>${esc(p.fullname)}</b><div style="font-size:11px;color:var(--dim);">#${p.id}</div></td>
       <td>${esc(a.doctor_name || '—')}</td>
       <td class="mono" style="color:var(--ok);">${fmtMoney(a.paid || 0)}</td>
@@ -554,21 +554,21 @@ function openHistory(patientId) {
         <div style="width:52px;height:52px;border-radius:50%;background:linear-gradient(135deg,var(--primary),var(--primary-dark));color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;">${esc(initials(p.fullname))}</div>
         <div style="flex:1;">
           <div style="font-size:17px;font-weight:700;">${esc(p.fullname)}</div>
-          <div style="font-size:12.5px;color:var(--muted);">#${p.id} · ${p.age} yosh · ${p.gender} · ${p.blood}</div>
+          <div style="font-size:12.5px;color:var(--muted);">#${p.id} · ${p.age} yosh · ${esc(p.gender)} · ${esc(p.blood)}</div>
           <div style="font-size:12.5px;color:var(--muted);">📞 ${esc(p.phone)}${esc(p.address ? ' · 📍 ' + p.address : '')}</div>
         </div>
       </div>
     </div>
     ${(p.allergies || []).length || (p.chronic || []).length ? `<div style="margin-bottom:14px;">
-      ${(p.allergies||[]).map(a=>`<span class="tag-item">⚠ ${a}</span>`).join(' ')}
-      ${(p.chronic||[]).map(c=>`<span class="tag-item warn">💊 ${c}</span>`).join(' ')}
+      ${(p.allergies||[]).map(a=>`<span class="tag-item">⚠ ${esc(a)}</span>`).join(' ')}
+      ${(p.chronic||[]).map(c=>`<span class="tag-item warn">💊 ${esc(c)}</span>`).join(' ')}
     </div>` : ''}
     <h4 style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">📋 Qabullar (${appts.length})</h4>
     ${appts.length ? appts.map(a => `
       <div class="locked-section">
-        <div class="head"><span class="t">${a.date} ${a.scheduled_time}</span></div>
+        <div class="head"><span class="t">${esc(a.date)} ${esc(a.scheduled_time)}</span></div>
         <div class="row"><span class="k">Shifokor</span><span class="v">${esc(a.doctor_name || '—')}</span></div>
-        <div class="row"><span class="k">Holat</span><span class="v">${statusLabel(a.status)}</span></div>
+        <div class="row"><span class="k">Holat</span><span class="v">${esc(statusLabel(a.status))}</span></div>
         <div class="row"><span class="k">Xizmat</span><span class="v">${esc(a.service?.name || '—')}</span></div>
         ${a.prelim_dx ? `<div class="row"><span class="k">Tashxis</span><span class="v">${esc(a.final_dx || a.prelim_dx)}</span></div>` : ''}
         <div class="row"><span class="k">To'lov</span><span class="v mono">${fmtMoney(a.paid || 0)} / ${fmtMoney((a.paid || 0) + (a.debt || 0))}</span></div>

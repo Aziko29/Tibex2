@@ -1049,7 +1049,7 @@ html[data-tibex-theme="dark"] .tibex-sidebar-toggle:hover {
         <h4>ℹ️ Tizim ma'lumotlari</h4>
         <div class="tibex-set-info-row"><span class="k">Versiya</span><span class="v">TIBEX v3.3.0</span></div>
         <div class="tibex-set-info-row"><span class="k">Foydalanuvchi</span><span class="v">${esc(u.fullname || '—')}</span></div>
-        <div class="tibex-set-info-row"><span class="k">Rol</span><span class="v">${u.role || '—'}</span></div>
+        <div class="tibex-set-info-row"><span class="k">Rol</span><span class="v">${esc(u.role || '—')}</span></div>
         <div class="tibex-set-info-row"><span class="k">Login</span><span class="v">${esc(u.login || '—')}</span></div>
         <div class="tibex-set-info-row"><span class="k">Parol almashtirilgan (tarix)</span><span class="v">${u.password_change_count || 0}</span></div>
         <div class="tibex-set-info-row"><span class="k">WebSocket</span><span class="v ${wsOk ? 'ok' : 'err'}">${wsOk ? '🟢 Ulangan' : '🔴 Uzilgan'}</span></div>
