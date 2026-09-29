@@ -5,6 +5,7 @@ import hmac
 import json
 import logging
 import os
+import time
 from typing import Any
 
 from cryptography.exceptions import InvalidTag
@@ -128,16 +129,32 @@ def blind_index(value: str | None, context: str) -> str | None:
     return hmac.new(_blind_key(), context.encode("utf-8") + b":" + normalized, hashlib.sha256).hexdigest()
 
 
+# Bitta buzilgan ustun minglab qatorda xato bersa, alert buferi to'lib ketmasligi uchun:
+# har bir context bo'yicha 60 soniyada ko'pi bilan bitta alert (log.critical har safar yoziladi).
+_DECRYPT_ALERT_WINDOW_S = 60.0
+_last_decrypt_alert: dict[str, float] = {}
+
+
+def _should_alert(context: str) -> bool:
+    now = time.monotonic()
+    last = _last_decrypt_alert.get(context)
+    if last is not None and now - last < _DECRYPT_ALERT_WINDOW_S:
+        return False
+    _last_decrypt_alert[context] = now
+    return True
+
+
 def _decrypt_or_raise(value: str, context: str) -> str:
     try:
         return _ring.decrypt(value, context)
     except DecryptionError:
         log.critical("Shifrlangan DB qiymati o'qilmadi (context=%s)", context)
-        try:
-            from ..routers.monitoring import record_alert
-            record_alert("critical", "DB shifrlangan qiymati o'qilmadi", f"context={context}", source="crypto")
-        except Exception:
-            log.exception("Shifrlash xatosi uchun alert yozilmadi")
+        if _should_alert(context):
+            try:
+                from ..routers.monitoring import record_alert
+                record_alert("critical", "DB shifrlangan qiymati o'qilmadi", f"context={context}", source="crypto")
+            except Exception:
+                log.exception("Shifrlash xatosi uchun alert yozilmadi")
         raise
 
 
