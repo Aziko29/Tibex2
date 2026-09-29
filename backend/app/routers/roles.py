@@ -13,7 +13,7 @@ from ..deps import (
     require_permission,
 )
 from ..models import Role, Session as DBSession, User
-from ..realtime import publish
+from ..realtime import publish, publish_session_revoked
 from ..security.audit import log_action
 
 router = APIRouter()
@@ -255,18 +255,23 @@ async def update_role(
     active_changed = ("active" in data and data["active"] != old_active)
 
     if permissions_changed or active_changed:
-        # Barcha userlar bilan bog'langan rolning sessiyalarini bekor qilish
         affected_users = (
             await db.execute(select(User).where(User.role_key == r.key))
         ).scalars().all()
         now = datetime.now(timezone.utc)
         for u in affected_users:
             u.session_valid_after = now
-        # Sessiya jadvalidan ham o'chirish
+
         if affected_users:
             user_ids = [u.id for u in affected_users]
+            revoked_jtis = (await db.execute(
+                select(DBSession.jti).where(DBSession.user_id.in_(user_ids))
+            )).scalars().all()
             await db.execute(sa_delete(DBSession).where(DBSession.user_id.in_(user_ids)))
-        await db.flush()
+            await db.flush()
+            # Close active WebSockets immediately, not on the next 60s tick.
+            for jti in revoked_jtis:
+                await publish_session_revoked(jti)
 
         await log_action(
             db, user=user.fullname, role=user.role_key, action="update",
