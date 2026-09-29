@@ -32,7 +32,13 @@ jobs:
         run: |
           pip install 'detect-secrets==1.5.0'
           detect-secrets scan --baseline .secrets.baseline
-      - run: pytest -q --cov=app
+      - name: Create RBAC matrix test database
+        env: { PGPASSWORD: ci }
+        run: psql -h 127.0.0.1 -U postgres -c 'CREATE DATABASE tibex_rbac_test'
+      - name: Tests
+        env:
+          TEST_DATABASE_URL: postgresql+asyncpg://postgres:ci@127.0.0.1:5432/tibex_rbac_test
+        run: pytest -q --cov=app
       - name: Alembic upgrade/downgrade/check
         run: |
           alembic upgrade head
