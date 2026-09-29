@@ -198,16 +198,37 @@ Yakuniy: `pytest` — **63 passed** (2 marta ketma-ket), `pyflakes app scripts t
 
 | Task | File(s) | Verification |
 |---|---|---|
-| gap-P0-1 | `backend/deploy/tibex-cleanup.{service,timer}`, `tibex-restore-drill.{service,timer}`, `tibex-logrotate`, `docs/OPERATIONS.md` | `systemd-analyze verify` rc=0 (stub paths); `logrotate -d` NOT run (not installed here) |
+| gap-P0-1 | `backend/deploy/tibex-cleanup.{service,timer}`, `tibex-restore-drill.{service,timer}`, `tibex-logrotate`, `docs/OPERATIONS.md` | `systemd-analyze verify` rc=0 (stub paths); `logrotate -d` NOT run (not installed here) ; cleanup.service: `ReadWritePaths=-…/backups` (leading `-` = optional; dir is created by nobody, missing path would fail with 226/NAMESPACE) |
 | gap-P0-2 | `.github/workflows/ci.yml` (Secret scan step) | `.secrets.baseline` NOT generated (no network) — generate with `detect-secrets 1.5.0` and commit |
 | gap-P0-3 | `backend/app/routers/roles.py`, `backend/tests/test_roles_ws_revoke.py` | syntax only; run `pytest backend/tests/test_roles_ws_revoke.py -v` |
 | gap-P1-1 | `backend/tests/conftest.py`, `backend/tests/test_rbac_matrix.py`, `.github/workflows/ci.yml` | not run (needs Postgres); expected 133 cases |
 | gap-P1-2 | `frontend/static/**`, `frontend/tests/xss.spec.js`, `frontend/package.json`, `.github/workflows/ci.yml` | source scan + detector self-check pass (2/2) with jsdom stubbed; negative control fails as expected; esc() jsdom tests need `npm install` |
 | gap-P2-1 | `backend/app/routers/ws.py` (`_ws_session_scope`, `_ws_session_problem`, `_audit_ws_reject`) | syntax + scope pattern checked with stub generators (commit/rollback/close, early return); `pytest backend/tests/test_ws.py` NOT run here (deps missing) |
 | gap-P2-2 | `backend/app/security/crypto.py`, `backend/tests/test_crypto_alert_dedupe.py` | helper logic checked standalone (100 calls → 1 alert; 61 s later → again); `pytest backend/tests/test_crypto_alert_dedupe.py` NOT run here |
-| gap-P2-4 | `backend/app/security/audit.py`, `backend/tests/test_audit_publish_throttle.py` | helper logic checked standalone (50 view/1 s → 1 publish; 5 payment → 5); `pytest backend/tests/test_audit_publish_throttle.py` NOT run here |
 | gap-P2-3 | `frontend/static/tibex-client.js` (`_fnv1a`, `_entitySig`, `_changedSnapshotEntities`), `frontend/tests/snapshot-hash.spec.js`, `frontend/package.json`, `.github/workflows/ci.yml` | `node --test tests/snapshot-hash.spec.js` 5/5 pass (FNV-1a vectors, >4096-char tail change detected). Prompt asked for `backend/app/realtime.py` + `repr(obj)[:4096]`; the function is JS in tibex-client.js and truncation would miss changes, so full-string hash + length is used |
+| gap-P2-4 | `backend/app/security/audit.py`, `backend/tests/test_audit_publish_throttle.py` | helper logic checked standalone (50 view/1 s → 1 publish; 5 payment → 5); `pytest backend/tests/test_audit_publish_throttle.py` NOT run here |
 | gate | `backend/docs/SECURITY.md` (`Patient.fullname` bo'limi) | docs only, kod o'zgarmadi; `STATUS: AWAITING DECISION (owner: <name>, opened: 2026-09-29)`; SECURITY.md da "kutilmoqda" qolmadi |
+
+### DoD tekshiruvi (sandbox natijasi)
+
+| Band | Natija |
+|---|---|
+| `systemd-analyze verify` (2 service) | rc=0 (mashinaga xos yo'llar vaqtincha almashtirilgan); `logrotate -d` bajarilmadi (o'rnatilmagan) |
+| `innerHTML` inventar jadvali | 141 qator, bo'sh `action`/`verified-by` yo'q |
+| alembic zanjiri (statik) | 11 revision, bitta head `int20260929_1200`, dangling yo'q; `upgrade→downgrade→upgrade` bajarilmadi (Postgres yo'q) |
+| test soni | funksiyalar: baseline 96 → 104 (+8); RBAC 133 holat Postgres talab qiladi |
+| `node --test tests/snapshot-hash.spec.js` | 5/5 o'tdi; `xss.spec.js` — `jsdom` yo'q, bajarilmadi |
+| pyflakes | o'rnatib bo'lmadi; AST tekshiruvi `ws.py` dagi ortiqcha `REVOKED` importini topdi va tuzatildi (P2-1 commit ichida) |
+| `.secrets.baseline` | YO'Q — tarmoqli muhitda yaratish kerak |
+| PR matni | `PR_BODY.md` (DoD checklist) |
+
+### Integratsiya tekshiruvi (statik)
+
+- 645 ta loyiha ichidagi import hal bo'ladi (moduldagi nom mavjud), sintaksis xatosi yo'q.
+- RBAC matritsasi: 19 endpoint, kutilgan rollar `init_db.SYSTEM_ROLES` + route `require_permission` dan chiqqan natijaga to'liq teng (0 og'ish).
+- Frontend: 36 JS fayl `node --check` dan o'tdi; esc()/escAttr() ishlatadigan 8 sahifaning hammasi `tibex-safe.js` ni birinchi yuklaydi.
+- CI: YAML yaroqli, Secret scan `pip-audit` dan keyin, test DB (`tibex_rbac_test`) `TIBEX_DATABASE_URL` dan alohida.
+- **Ochiq (qaror kerak):** `tibex-restore-drill.service` `User=tibex` bilan ishlaydi, lekin `TIBEX_BACKUP_IDENTITY=/root/...` va `/var/backups/tibex` (0700, `backup.sh` yaratadi) `tibex` uchun o'qilmasligi mumkin — ishga tushirishdan oldin foydalanuvchi/yo'llarni moslang.
 
 ### P1-2 innerHTML inventory
 
