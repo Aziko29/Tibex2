@@ -205,6 +205,7 @@ Yakuniy: `pytest` — **63 passed** (2 marta ketma-ket), `pyflakes app scripts t
 | gap-P1-2 | `frontend/static/**`, `frontend/tests/xss.spec.js`, `frontend/package.json`, `.github/workflows/ci.yml` | source scan + detector self-check pass (2/2) with jsdom stubbed; negative control fails as expected; esc() jsdom tests need `npm install` |
 | gap-P2-1 | `backend/app/routers/ws.py` (`_ws_session_scope`, `_ws_session_problem`, `_audit_ws_reject`) | syntax + scope pattern checked with stub generators (commit/rollback/close, early return); `pytest backend/tests/test_ws.py` NOT run here (deps missing) |
 | gap-P2-2 | `backend/app/security/crypto.py`, `backend/tests/test_crypto_alert_dedupe.py` | helper logic checked standalone (100 calls → 1 alert; 61 s later → again); `pytest backend/tests/test_crypto_alert_dedupe.py` NOT run here |
+| gap-P2-4 | `backend/app/security/audit.py`, `backend/tests/test_audit_publish_throttle.py` | helper logic checked standalone (50 view/1 s → 1 publish; 5 payment → 5); `pytest backend/tests/test_audit_publish_throttle.py` NOT run here |
 
 ### P1-2 innerHTML inventory
 

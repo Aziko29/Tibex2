@@ -1,6 +1,7 @@
 """Append-only audit jurnali: hash-zanjir, poyga-himoyasi va tekshiruv."""
 import hashlib
 import json
+import time
 from datetime import datetime, timezone
 
 from sqlalchemy import func, select, text
@@ -10,6 +11,29 @@ from ..realtime import publish
 
 ZERO_HASH = "0" * 64
 _ADVISORY_LOCK_KEY = 7_420_001_001  # audit zanjiri uchun doimiy kalit
+
+# `audit.created` eventi faqat UI'ni yangilaydi (yozuvning o'zi doim DB'ga yoziladi).
+# PHI o'qish ("view") juda ko'p bo'lgani uchun har (user, action) ga 2 s da bittadan
+# publish qilinadi; boshqa barcha action'lar (payment, update, ...) darhol publish qilinadi.
+_PUBLISH_THROTTLE_S = 2.0
+_THROTTLED_ACTIONS = frozenset({"view"})
+_PUBLISH_MAP_MAX = 1024
+_last_publish: dict[tuple[str, str], float] = {}
+
+
+def _should_publish(user: str, action: str) -> bool:
+    if action not in _THROTTLED_ACTIONS:
+        return True
+    now = time.monotonic()
+    key = (user, action)
+    last = _last_publish.get(key)
+    if last is not None and now - last < _PUBLISH_THROTTLE_S:
+        return False
+    if len(_last_publish) >= _PUBLISH_MAP_MAX:  # xotira o'smasligi uchun eskirganlarini tozalash
+        for k in [k for k, t in _last_publish.items() if now - t >= _PUBLISH_THROTTLE_S]:
+            del _last_publish[k]
+    _last_publish[key] = now
+    return True
 
 
 def compute_row_hash(prev_hash: str, *, id: int, user: str, role: str, action: str,
@@ -68,11 +92,12 @@ async def log_action(
     )
     db.add(log)
     await db.flush()
-    await publish("audit.created", {
-        "id": log.id, "user": log.user, "role": log.role,
-        "action": log.action, "detail": log.detail,
-        "ts": int(created_at.timestamp() * 1000),
-    })
+    if _should_publish(user, action):
+        await publish("audit.created", {
+            "id": log.id, "user": log.user, "role": log.role,
+            "action": log.action, "detail": log.detail,
+            "ts": int(created_at.timestamp() * 1000),
+        })
     return log
 
 
