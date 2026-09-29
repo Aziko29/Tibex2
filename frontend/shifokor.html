@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TIBEX — Shifokor konsoli</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+<script src="static/tibex-safe.js"></script>
+<script src="static/tibex-client.js"></script>
+<script src="static/tibex-clinic-info.js"></script>
+<script src="static/tibex-session.js"></script>
+<script src="static/tibex-password.js"></script>
+<script src="static/tibex-settings.js"></script>
+<script src="static/tibex-console-theme.js"></script>
+<script src="static/tibex-notifications.js"></script>
+<script src="static/tibex-realtime-pro.js"></script>
+<!-- TIBEX_DOCTOR_CLEANUP_v1: fortress olib tashlandi (faqat admin) -->
+
+<link rel="stylesheet" href="static/css/tibex-base.css">
+  <link rel="stylesheet" href="static/css/doctor.dcf51a8d.css">
+<link rel="stylesheet" href="static/css/tibex-console.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">TIBEX · Shifokor</div>
+  <div class="stat-chip blue"><span>Bugun:</span><b id="statToday">0</b></div>
+  <div class="stat-chip gold"><span>Kutmoqda:</span><b id="statWaiting">0</b></div>
+  <div class="stat-chip purple"><span>Qabulda:</span><b id="statInProgress">0</b></div>
+  <div class="stat-chip"><span>Yakun:</span><b id="statDone">0</b></div>
+  <div class="sync-status" id="syncStatus"><span class="dot"></span><span>Live</span></div>
+  <div class="spacer"></div>
+  <button class="icon-btn" id="btnHelp" title="Yordam (F1)">?</button>
+  <button class="icon-btn" title="Chiqish">🚪</button>
+</div>
+
+<div class="tabs-bar">
+  <button class="tab active" data-view="queue">📋 Mening navbatim <span class="badge" id="tabQueueBadge">0</span></button>
+  <button class="tab" data-view="today">📊 Bugun</button>
+  <button class="tab" data-view="patients">🧑 Bemorlarim</button>
+  <button class="tab" data-view="labs">🔬 Lab natijalar <span class="badge purple" id="tabLabBadge">0</span></button>
+  <button class="tab" data-view="history">📚 Tarixim</button>
+</div>
+
+<div class="main">
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">Tezkor amallar</div>
+      <button class="quick-action green" id="qaNewPatient"><span class="ico">🧑</span> Yangi bemor <span class="kbd">F2</span></button>
+      <button class="quick-action primary" id="qaRefresh"><span class="ico">↻</span> Yangilash <span class="kbd">F5</span></button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Bugungi natijalar</div>
+      <div class="stats-grid">
+        <div class="stat-box blue"><div class="v" id="sbTotal">0</div><div class="l">Jami</div></div>
+        <div class="stat-box gold"><div class="v" id="sbWaiting">0</div><div class="l">Kutmoqda</div></div>
+        <div class="stat-box purple"><div class="v" id="sbProgress">0</div><div class="l">Qabulda</div></div>
+        <div class="stat-box green"><div class="v" id="sbDone">0</div><div class="l">Yakun</div></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Navbatda <span class="float-right-danger" id="sbQueueCount">0</span></div>
+      <div class="mh-260 overflow-y-auto" id="sbQueueList"></div>
+    </div>
+
+    <!-- TIBEX_DOCTOR_CLEANUP_v1: Lab so'rovlar sidebar olib tashlandi -->
+
+    <!-- TIBEX_DOCTOR_CLEANUP_v1: Uskunalar sidebar olib tashlandi -->
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Shifokor</div>
+      <div class="d-flex items-center gap-10">
+        <div class="avatar-circle" id="sbAvatar">DR</div>
+        <div>
+          <div class="fw-700 fs-13" id="sbUserName">—</div>
+          <div class="fs-11 text-muted" id="sbUserRole">—</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="content">
+
+    <!-- QUEUE -->
+    <div class="view active" data-view-content="queue">
+      <div class="block">
+        <div class="page-header">
+          <div class="title">📋 Bugungi navbat <span class="count" id="queueCount">0</span></div>
+          <div class="actions">
+            <button class="btn" id="btnRefresh">↻ Yangilash</button>
+          </div>
+        </div>
+        <div class="search-bar">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="queueSearch" placeholder="Bemor F.I.Sh yoki telefon..." autocomplete="off">
+          </div>
+        </div>
+        <div class="filters">
+          <button class="filter-chip on" data-qfilter="all">Barchasi <span class="n" id="qfAll">0</span></button>
+          <button class="filter-chip" data-qfilter="waiting">⏳ Kutmoqda <span class="n" id="qfWaiting">0</span></button>
+          <button class="filter-chip" data-qfilter="arrived">👋 Keldi <span class="n" id="qfArrived">0</span></button>
+          <button class="filter-chip" data-qfilter="in_progress">🩺 Qabulda <span class="n" id="qfInProg">0</span></button>
+          <button class="filter-chip" data-qfilter="lab_waiting">🔬 Lab kutish <span class="n" id="qfLabWaiting">0</span></button>
+          <button class="filter-chip badge-green-strong" data-qfilter="lab_ready">✅ Lab tayyor <span class="n" id="qfLabReady">0</span></button>
+          <button class="filter-chip" data-qfilter="completed">✓ Yakun <span class="n" id="qfDone">0</span></button>
+        </div>
+        <div class="block-body">
+          <table class="data-table">
+            <thead><tr>
+              <th class="w-70">Vaqt</th>
+              <th class="w-80">Prior.</th>
+              <th>Bemor</th>
+              <th class="w-200">Xizmat</th>
+              <th class="w-140">Holat</th>
+              <th class="w-260"></th>
+            </tr></thead>
+            <tbody id="queueBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TODAY -->
+    <div class="view" data-view-content="today">
+      <div class="block">
+        <div class="page-header"><div class="title">📊 Bugungi ko'rsatkichlar</div></div>
+        <div class="overview-grid">
+          <div class="overview-card blue"><div class="v" id="ovTotal">0</div><div class="l">Jami qabullar</div></div>
+          <div class="overview-card gold"><div class="v" id="ovWaiting">0</div><div class="l">Kutmoqda</div></div>
+          <div class="overview-card purple"><div class="v" id="ovInProg">0</div><div class="l">Qabulda</div></div>
+          <div class="overview-card green"><div class="v" id="ovDone">0</div><div class="l">Yakunlangan</div></div>
+          <div class="overview-card blue"><div class="v" id="ovRevenue">0</div><div class="l">Tushum</div></div>
+        </div>
+      </div>
+      <div class="block">
+        <div class="page-header"><div class="title">🕒 Vaqt bo'yicha taqsimot</div></div>
+        <div class="overview-grid">
+          <div class="overview-card"><div class="v" id="ovMorning">0</div><div class="l">Ertalab (8-12)</div></div>
+          <div class="overview-card"><div class="v" id="ovAfternoon">0</div><div class="l">Kunduzi (12-17)</div></div>
+          <div class="overview-card"><div class="v" id="ovEvening">0</div><div class="l">Kechqurun (17-20)</div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PATIENTS -->
+    <div class="view" data-view-content="patients">
+      <div class="block">
+        <div class="search-bar">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="patientsSearch" placeholder="Bemor F.I.Sh yoki telefon..." autocomplete="off">
+          </div>
+        </div>
+        <div class="page-header"><div class="title">🧑 Mening bemorlarim <span class="count" id="patientsCount">0</span></div></div>
+        <div class="block-body">
+          <table class="data-table">
+            <thead><tr>
+              <th class="w-70">ID</th>
+              <th>F.I.Sh</th>
+              <th class="w-160">Telefon</th>
+              <th class="w-70">Yosh</th>
+              <th class="w-80">Jins</th>
+              <th class="w-100">Qabullar</th>
+              <th class="w-140"></th>
+            </tr></thead>
+            <tbody id="patientsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- LABS -->
+    <div class="view" data-view-content="labs">
+      <div class="block">
+        <div class="page-header"><div class="title">🔬 Lab natijalar (mening bemorlarim) <span class="count" id="labsCount">0</span></div></div>
+        <div class="filters">
+          <button class="filter-chip on" data-lfilter="all">Barchasi <span class="n" id="lfAll">0</span></button>
+          <button class="filter-chip" data-lfilter="new">🆕 Yangi <span class="n" id="lfNew">0</span></button>
+          <button class="filter-chip" data-lfilter="processing">⏳ Jarayonda <span class="n" id="lfProcessing">0</span></button>
+          <button class="filter-chip" data-lfilter="verified">✅ Tasdiq <span class="n" id="lfVerified">0</span></button>
+        </div>
+        <div class="block-body">
+          <table class="data-table">
+            <thead><tr>
+              <th class="w-150">Lab ID</th>
+              <th>Bemor</th>
+              <th class="w-220">Test</th>
+              <th class="w-130">Holat</th>
+              <th class="w-280">Natija</th>
+              <th class="w-100"></th>
+            </tr></thead>
+            <tbody id="labsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="view" data-view-content="history">
+      <div class="block">
+        <div class="search-bar">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="historySearch" placeholder="Bemor yoki tashxis..." autocomplete="off">
+          </div>
+        </div>
+        <div class="page-header"><div class="title">📚 Oxirgi qabullar <span class="count" id="historyCount">0</span></div></div>
+        <div class="block-body">
+          <table class="data-table">
+            <thead><tr>
+              <th class="w-100">Sana</th>
+              <th class="w-70">Vaqt</th>
+              <th>Bemor</th>
+              <th class="w-260">Tashxis</th>
+              <th class="w-130">Holat</th>
+              <th class="w-120"></th>
+            </tr></thead>
+            <tbody id="historyBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="actions">
+  <div class="group">
+    <!-- TIBEX_DOCTOR_DEDUPE_v1: actRefresh olib tashlandi (btnRefresh + qaRefresh bor) -->
+    <!-- TIBEX_DOCTOR_DEDUPE_v1: actToday olib tashlandi -->
+  </div>
+  <!-- TIBEX_DOCTOR_DEDUPE_v1: actNewPatient olib tashlandi (sidebar'da qaNewPatient bor) -->
+  <div class="spacer"></div>
+  <button class="big-action purple" id="actNextPatient">▶ Keyingi bemor</button>
+  <!-- TIBEX_DOCTOR_DEDUPE_v1: actQueue olib tashlandi (tab'da bor) -->
+</div>
+
+<!-- MODAL: VISIT (medical record) -->
+<div class="modal-backdrop" id="modalVisit">
+  <div class="modal xwide">
+    <div class="modal-head">
+      <h3 id="visitTitle">🩺 Qabul</h3>
+      <button class="close" data-close>✕</button>
+    </div>
+    <div class="modal-body" id="visitBody"></div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Yopish</button>
+      <button class="btn" id="btnSaveDraft">💾 Qoralama</button>
+      <button class="btn success" id="btnComplete">✓ Yakunlash</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NEW PATIENT -->
+<div class="modal-backdrop" id="modalPatient">
+  <div class="modal wide">
+    <div class="modal-head">
+      <h3>🧑 Yangi bemor</h3>
+      <button class="close" data-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field grid-span"><label>F.I.Sh <span class="req">*</span></label><input class="input" id="pName"></div>
+        <div class="form-field"><label>Telefon <span class="req">*</span></label><input class="input" id="pPhone" value="+998 "></div>
+        <div class="form-field"><label>Yosh <span class="req">*</span></label><input class="input" id="pAge" type="number"></div>
+        <div class="form-field"><label>Jins</label>
+          <select class="select" id="pGender"><option>Erkak</option><option>Ayol</option></select>
+        </div>
+        <div class="form-field"><label>Qon guruhi</label>
+          <select class="select" id="pBlood">
+            <option>O+</option><option>O-</option><option>A+</option><option>A-</option>
+            <option>B+</option><option>B-</option><option>AB+</option><option>AB-</option>
+            <option>Noma'lum</option>
+          </select>
+        </div>
+        <div class="form-field grid-span"><label>Manzil</label><input class="input" id="pAddress"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Bekor qilish</button>
+      <button class="btn primary" id="btnSavePatient">✓ Saqlash</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: HELP -->
+<div class="modal-backdrop" id="modalHelp">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>⌨️ Klaviatura yorlig'i</h3>
+      <button class="close" data-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="kbd-grid">
+        <div class="kbd-group">
+          <h4>Tezkor</h4>
+          <div class="kbd-row"><kbd>F1</kbd><span>Yordam</span></div>
+          <div class="kbd-row"><kbd>F2</kbd><span>Yangi bemor</span></div>
+          <div class="kbd-row"><kbd>F5</kbd><span>Yangilash</span></div>
+          <div class="kbd-row"><kbd>Esc</kbd><span>Yopish</span></div>
+        </div>
+        <div class="kbd-group">
+          <h4>Navigatsiya</h4>
+          <div class="kbd-row"><kbd>Ctrl</kbd>+<kbd>1</kbd><span>Navbat</span></div>
+          <div class="kbd-row"><kbd>Ctrl</kbd>+<kbd>2</kbd><span>Bugun</span></div>
+          <div class="kbd-row"><kbd>Ctrl</kbd>+<kbd>3</kbd><span>Bemorlar</span></div>
+          <div class="kbd-row"><kbd>Ctrl</kbd>+<kbd>4</kbd><span>Lab</span></div>
+          <div class="kbd-row"><kbd>Ctrl</kbd>+<kbd>5</kbd><span>Tarix</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+<script src="static/tibex-safe-bind.js"></script>
+<script src="static/tibex-role-refresh.js"></script>
+  <script src="static/js/doctor.60f58605.js"></script>
+</body>
+</html>

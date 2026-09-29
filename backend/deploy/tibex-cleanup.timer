@@ -1,0 +1,7 @@
+[Unit]
+Description=TIBEX tozalash — kunlik
+[Timer]
+OnCalendar=daily
+Persistent=true
+[Install]
+WantedBy=timers.target

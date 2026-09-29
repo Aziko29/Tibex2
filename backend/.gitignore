@@ -1,0 +1,59 @@
+# ─── Python ───
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# ─── Env ───
+.env
+.env.local
+.env.*.local
+.env.public
+
+# ─── Fayl-asosidagi sirlar (Docker secrets) ───
+secrets/
+*.secret
+
+# ─── IDE ───
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ─── OS ───
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── Test / Coverage ───
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# ─── Logs ───
+*.log
+logs/
+
+# ─── Backup ───
+backups/
+*.dump
+*.sql.gz
+
+# ─── Alembic ───
+alembic/versions/*.pyc
+# Xavfsizlik
+cookies.txt
+*.cookies

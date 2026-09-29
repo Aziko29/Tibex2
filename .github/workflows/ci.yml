@@ -1,0 +1,49 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: ci, POSTGRES_DB: tibex_test }
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ["6379:6379"]
+    defaults: { run: { working-directory: backend } }
+    env:
+      TIBEX_ENV: test
+      TIBEX_DATABASE_URL: postgresql+asyncpg://postgres:ci@127.0.0.1:5432/tibex_test
+      TIBEX_REDIS_URL: redis://127.0.0.1:6379/0
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12", cache: pip }
+      - run: pip install -r requirements.txt ruff pyflakes bandit pip-audit pytest pytest-asyncio pytest-cov
+      - run: ruff check app scripts
+      - run: python -m pyflakes app scripts
+      - run: bandit -r app -ll
+      - run: pip-audit -r requirements.lock
+      - run: pytest -q --cov=app
+      - name: Alembic upgrade/downgrade/check
+        run: |
+          alembic upgrade head
+          alembic downgrade base
+          alembic upgrade head
+          alembic check
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - run: npm i --no-save eslint@8 eslint-plugin-no-unsanitized
+      - run: npx eslint -c frontend/.eslintrc.json "frontend/static/**/*.js" "frontend/*.js" --ignore-pattern "**/vendor/**"
+  secrets:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install detect-secrets && detect-secrets scan --baseline .secrets.baseline || detect-secrets scan

@@ -1,0 +1,3 @@
+#!/bin/bash
+# /etc/cron.daily/tibex-backup — sozlamalar: /etc/tibex/backup.env; parol: ~postgres-user/.pgpass (0600)
+exec /opt/tibex/backend/scripts/backup.sh

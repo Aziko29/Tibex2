@@ -1,0 +1,159 @@
+/* ==========================================================
+   bemor-login.css — FAQAT frontend/bemor-login.html sahifasi uchun.
+   patient.7b632841.css'dan KEYIN yuklanadi (bemor-login.html'da).
+   login.html bu faylni ULAMAYDI, shuning uchun bu yerdagi
+   o'zgarishlar xodim kirish sahifasiga hech qanday ta'sir qilmaydi.
+
+   TUZATILGAN ASOSIY MUAMMO ("teshik"/bo'shliqlar):
+   .card ichidagi kontent (.otp-step, alert, havola) hech qanday
+   padding'siz to'g'ridan-to'g'ri joylashgan edi — shu sabab matn
+   va input'lar kartaning burchaklariga/qirralariga yopishib,
+   ekranda "kesilgan"/"teshik" ko'rinishini berardi. Endi hamma
+   narsa .card-body ichida, atrofida clamp() asosidagi moslashuvchan
+   padding bilan o'raladi.
+   ========================================================== */
+
+/* ---- 1) Dinamik viewport balandligi + notch/gesture-bar hududlari ---- */
+body {
+  min-height: 100dvh;
+  padding: clamp(12px, 4vw, 20px);
+  padding-top: max(clamp(12px, 4vw, 20px), env(safe-area-inset-top, 0px));
+  padding-bottom: max(clamp(12px, 4vw, 20px), env(safe-area-inset-bottom, 0px));
+  padding-left: max(clamp(12px, 4vw, 20px), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(12px, 4vw, 20px), env(safe-area-inset-right, 0px));
+  overflow-x: hidden;
+}
+
+/* Mobil landscape (balandlik kichik bo'lganda): markazga tekislashni
+   to'xtatib, yuqoridan boshlab tabiiy oqim + scroll'ga o'tkazamiz. */
+@media (max-height: 560px) {
+  body {
+    display: block;
+    padding-top: max(16px, env(safe-area-inset-top, 0px));
+    padding-bottom: max(16px, env(safe-area-inset-bottom, 0px));
+  }
+  .login-wrap { margin: 0 auto; }
+}
+
+/* ---- 2) Moslashuvchan kenglik: fixed 460px o'rniga min() ---- */
+.login-wrap {
+  width: min(460px, 100%);
+}
+
+/* Ultra-wide monitorlarda (1600px+) karta haddan tashqari katta
+   ko'rinib ketmasligi uchun aniqlik (ixtiyoriy, faqat estetik) */
+@media (min-width: 1600px) {
+  .login-wrap { width: min(480px, 26vw); }
+}
+
+/* ---- 3) "TESHIK" MUAMMOSINING TUZATILISHI ----
+   .card ichidagi asosiy kontent uchun o'z-o'zidan moslashuvchan
+   padding. patient.css'dagi .tab-pane padding'iga o'xshash, lekin
+   bu sahifada tab yo'q, shuning uchun alohida .card-body klassi. */
+.card {
+  width: 100%;
+}
+.card-body {
+  padding: clamp(20px, 6vw, 28px) clamp(16px, 5.5vw, 26px) clamp(16px, 5vw, 22px);
+}
+
+/* Xodim kirish sahifasiga havola — endi inline style o'rniga klass */
+.staff-link {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-decoration: none;
+}
+
+/* ---- 4) Alert, otp-step va boshqa ichki bloklar kartadan
+   "toshib" ketmasligi uchun kenglik nazorati ---- */
+.card-body,
+.card-body * {
+  max-width: 100%;
+}
+.alert { word-break: break-word; }
+
+/* ---- 5) Rem/clamp asosidagi shriftlar — 320px'dan 2560px+gacha
+   silliq masshtablanadi, va brauzer matn-kattalashtirish (200%
+   gacha accessibility zoom) bilan ham buzilmaydi ---- */
+.brand { padding: 0 8px; }
+.brand .logo {
+  width: clamp(56px, 16vw, 68px);
+  height: clamp(56px, 16vw, 68px);
+  font-size: clamp(28px, 8vw, 34px);
+}
+.brand h1 { font-size: clamp(20px, 5.5vw, 26px); word-break: break-word; }
+.brand p  { font-size: clamp(12px, 3vw, 13px); }
+
+.login-title { margin-bottom: 16px; }
+.login-field-label { font-size: clamp(12.5px, 3.2vw, 14px); color: var(--muted); margin-bottom: 4px; }
+.login-mono-label {
+  font-family: ui-monospace, monospace;
+  font-size: clamp(14px, 4vw, 16px);
+  font-weight: 700;
+  word-break: break-all;
+}
+
+/* ---- 6) Touch-target va iOS avto-zoom oldini olish ----
+   Apple HIG / Material Design: bosiladigan elementlar >= 44x44px.
+   iOS Safari fokusdagi input font-size 16px'dan kichik bo'lsa,
+   sahifani avtomatik kattalashtiradi — shuning uchun kamida 16px. */
+.field input,
+.otp-inputs input {
+  font-size: max(16px, 1rem);
+}
+.field input,
+.btn {
+  min-height: 44px;
+}
+
+/* ---- 7) OTP-inputs grid — tor ekranlarda (320px) kataklar
+   bir-biriga yopishib ketmasligi va kartadan toshib chiqmasligi
+   uchun gap va o'lcham moslashadi ---- */
+.otp-inputs {
+  gap: clamp(4px, 2vw, 8px);
+}
+.otp-inputs input {
+  min-width: 0;                 /* grid item torayishiga to'sqinlik qilmasin */
+  min-height: 44px;
+  font-size: clamp(16px, 5.5vw, 22px);
+}
+@media (max-width: 360px) {
+  .otp-inputs input { font-size: clamp(15px, 4.5vw, 18px); }
+}
+
+/* ---- 8) Juda tor ekranlar (280–340px, masalan eski/kichik
+   qurilmalar yoki brauzer devtools) uchun qo'shimcha siqilish ---- */
+@media (max-width: 340px) {
+  .card-body { padding: 18px 14px 16px; }
+  .brand { margin-bottom: 18px; }
+}
+
+/* ---- 9) Footer matni tor ekranda ikki qatorga tushsa ham
+   chiroyli ko'rinishi uchun ---- */
+.footer {
+  word-break: break-word;
+}
+
+/* ---- 10) Dark mode (ixtiyoriy) ---- */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --panel: #1e1b2e;
+    --bg: #0f0d1a;
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+    --dim: #6b7280;
+    --border: #322d4a;
+  }
+  .card { background: var(--panel); box-shadow: 0 24px 60px rgba(0,0,0,.6); }
+  .field input,
+  .otp-inputs input {
+    background: #14121f;
+    color: var(--text);
+    border-color: var(--border);
+  }
+  .field input:disabled { background: #100e1a; }
+  .footer { background: #171325; border-top-color: var(--border); }
+  .btn.ghost { background: transparent; border-color: var(--border); }
+  .otp-inputs input.filled { background: rgba(124,58,237,.18); }
+}

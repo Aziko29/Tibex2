@@ -1,0 +1,209 @@
+/* ==========================================================
+   bemor-dashboard.css — FAQAT frontend/bemor.html (Bemor kabineti)
+   uchun. static/css/tibex-base.css'dan KEYIN yuklanadi va faqat
+   shu sahifada ulangan — admin/shifokor/qabulxona/kassa/
+   labaratoriya sahifalariga HECH QANDAY ta'sir qilmaydi (ular bu
+   faylni ulamaydi).
+
+   Boshqa rol sahifalari (masalan reception.c516e04e.css,
+   admin.68f1f4d8.css) qanday qilingan bo'lsa, shu andozada:
+   1) :root'da o'z rang palitrasi (bemor uchun binafsha/violet —
+      bemor-login.html bilan bir xil brend uyg'unligi uchun),
+   2) tibex-base.css'da atayin "sahifaga qoldirilgan" komponentlar
+      (.sidebar, .overview-card, .modal) to'ldiriladi,
+   3) mobil ekranlar uchun responsiv qatlam qo'shiladi.
+   ========================================================== */
+
+:root {
+  --bg: #f6f4fd;
+  --panel: #fff;
+  --border: #e6e0f7;
+  --text: #1a2332; --muted: #64748b; --dim: #94a3b8;
+  --primary: #7c3aed; --primary-dark: #5b21b6; --primary-tint: #f5f3ff;
+  --danger: #dc2626; --danger-tint: #fef2f2;
+  --warn: #b45309; --warn-tint: #fffbeb;
+  --ok: #15803d; --ok-tint: #dcfce7;
+  --dark: #1e1b2e;
+  --info: #0369a1; --info-tint: #e0f2fe;
+  --gold: #a16207; --gold-tint: #fef9c3;
+  --purple: #7c3aed; --purple-tint: #f5f3ff;
+}
+
+/* ---- 1) Topbar — bemor-login bilan bir xil binafsha brend ---- */
+.topbar {
+  background: linear-gradient(120deg, #1e1b2e 0%, #3b1670 55%, #5b21b6 100%);
+}
+.topbar .logo {
+  display: flex; align-items: center; gap: 8px;
+  color: #e9d5ff; border-right-color: rgba(255,255,255,.15);
+}
+.topbar .logo::before { content: "🧑‍⚕️"; font-size: 15px; }
+.stat-chip.purple b { color: #d8b4fe; }
+.topbar .icon-btn { width: 34px; height: 34px; padding: 0; justify-content: center; font-size: 15px; }
+
+/* ---- 2) Sidebar — tibex-base.css'da atayin belgilanmagan, shu yerda to'ldiriladi ---- */
+.sidebar {
+  width: 260px; background: var(--panel); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto;
+}
+.avatar-circle {
+  width: 44px; height: 44px; font-size: 16px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  box-shadow: 0 4px 12px rgba(124,58,237,.35);
+}
+
+/* ---- 3) Overview / stat kartalar — chiroyli, chapdan rangli chiziq bilan ---- */
+.overview-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 10px;
+  padding: 16px; position: relative; overflow: hidden;
+  box-shadow: 0 1px 3px rgba(30,16,60,.04);
+}
+.overview-card::before {
+  content: ""; position: absolute; top: 0; left: 0; bottom: 0; width: 4px;
+  border-radius: 4px 0 0 4px;
+}
+.stat-box { border-radius: 8px; }
+
+/* ---- 4) Jadval qatorlari — bosilganda biroz "card" hissi ---- */
+.data-table tbody tr:hover { background: var(--primary-tint); }
+
+/* ---- 5) Modal (Profilni tahrirlash) — tibex-base.css'da .modal
+   o'zining kengligi/foni yo'q, shu yerda beriladi ---- */
+.modal {
+  background: #fff; border-radius: 14px; box-shadow: 0 20px 60px rgba(30,16,60,.35);
+  width: min(560px, 92vw); max-height: 90vh; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+
+/* ---- 6) Profil maydonlari (readonly ko'rinish) — biroz yumshoqroq ---- */
+.form-field .input { border-radius: 8px; }
+
+/* ==========================================================
+   RESPONSIV QATLAM — bemor kabineti telefonda ham qulay ishlashi
+   uchun (staff konsollari faqat desktop uchun mo'ljallangan edi,
+   lekin bemorlar asosan telefondan kirishadi).
+   ========================================================== */
+
+/* Butun ilova body{height:100vh;overflow:hidden} bilan qurilgan —
+   mobil o'lchamda sidebar pastga tushganda umumiy balandlik
+   oshadi, shuning uchun shu sahifada sahifa darajasida scroll'ga
+   ruxsat beramiz. */
+@media (max-width: 880px) {
+  html, body { height: auto; min-height: 100dvh; overflow: visible; }
+  .main { flex-direction: column; overflow: visible; }
+
+  .sidebar {
+    width: 100%; border-right: none; border-bottom: 1px solid var(--border);
+    overflow: visible; flex-direction: row; flex-wrap: wrap;
+  }
+  .sidebar-section { flex: 1 1 220px; }
+  .stats-grid { grid-template-columns: repeat(4, 1fr); }
+
+  .content { overflow: visible; padding: 12px; }
+  .overview-grid { grid-template-columns: repeat(2, minmax(140px, 1fr)); padding: 4px 0 12px; }
+
+  .topbar { padding: 0 10px; gap: 4px; }
+  .topbar .logo { font-size: 13px; padding-right: 8px; }
+}
+
+/* Juda tor ekranlar (320-380px): qo'shimcha stat-chip'larni
+   yashirib, faqat eng muhimini (qarzdorlik) qoldiramiz — joy
+   tejash uchun, ma'lumot yo'qolmaydi (Bosh sahifa tabida bari bor). */
+@media (max-width: 480px) {
+  .stat-chip.blue, .stat-chip.purple { display: none; }
+  .stats-grid { grid-template-columns: repeat(2, 1fr); }
+  .overview-grid { grid-template-columns: 1fr 1fr; }
+  .data-table { font-size: 12px; }
+}
+
+/* Foldable/tablet oraliq (768-1024px): sidebar joyida qoladi, lekin
+   torroq bo'ladi — content bilan balans saqlanadi. */
+@media (min-width: 768px) and (max-width: 1024px) {
+  .sidebar { width: 220px; }
+}
+
+/* Accessibility zoom / matn kattalashtirilganda tugmalar va
+   inputlar hech bo'lmaganda 44px touch-target saqlaydi */
+.btn, .icon-btn, .tab { min-height: 40px; }
+@media (pointer: coarse) {
+  .btn, .icon-btn, .tab, .row-actions button { min-height: 44px; }
+}
+
+/* ==========================================================
+   QO'SHIMCHA TUZATISHLAR — bemor konsolini "har qanday qurilma"
+   uchun to'liq responsive va chiroyli qilish (2-bosqich).
+   Faqat shu faylga tegishli (bemor.html'dan boshqa hech qaysi
+   sahifa bu faylni ulamaydi), shuning uchun quyidagi qoidalar
+   boshqa rol konsollariga (admin/shifokor/qabulxona/kassa/lab)
+   hech qanday ta'sir qilmaydi.
+   ========================================================== */
+
+/* ---- 7) Forma to'r (Profilim, Parolni o'zgartirish, Modal) ----
+   tibex-base.css'dagi .form-grid hamma joyda qattiq "1fr 1fr"
+   edi — tor ekranda ikkita ustun torayib, kiritish maydonlari
+   siqilib qolardi. Shu sahifada avtomatik moslashuvchan qilamiz:
+   joy yetganda 2 ustun, tor bo'lganda o'zi 1 ustunga tushadi. */
+.form-grid {
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+/* ---- 8) Topbar sarlavhasi va chip'lari hech qachon "toshib"
+   ketmasin — juda tor (280–360px) qurilmalarda ham xavfsiz. ---- */
+.topbar .logo {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  max-width: 42vw;
+}
+.topbar { overflow-x: auto; }
+
+/* ---- 9) Sahifa darajasida gorizontal "sirg'alish"ning oldini
+   olish (mobil rejimda body/html overflow "visible" bo'lgani
+   uchun, faqat X o'qi bo'yicha yopiladi — Y scroll saqlanadi). ---- */
+@media (max-width: 880px) {
+  html, body { overflow-x: hidden; }
+}
+
+/* ---- 10) Modal — kichik ekranlarda ichki bo'shliqlar va
+   sarlavha siqilishi moslashuvchan bo'lsin ---- */
+@media (max-width: 480px) {
+  .modal-backdrop { padding: 12px; }
+  .modal-head { padding: 14px 16px; }
+  .modal-body { padding: 16px; }
+  .modal-foot { padding: 12px 16px; flex-wrap: wrap; }
+  .modal-foot .btn { flex: 1 1 auto; }
+  .modal-head h3 { font-size: 14px; }
+}
+
+/* ---- 11) Overview va stat kartalar — juda tor ekranda raqam
+   shrifti va padding biroz siqiladi, lekin card hech qachon
+   matnni kesib tashlamaydi (word-break bilan himoyalangan) ---- */
+@media (max-width: 400px) {
+  .overview-card { padding: 12px; }
+  .overview-card .v { font-size: 21px; }
+  .stat-box { padding: 8px; }
+}
+.overview-card .v, .stat-box .v { word-break: break-word; }
+
+/* ---- 12) Jadvallar — gorizontal scroll silliq (iOS) va
+   qatorlar orasidagi matn hech qachon kartadan toshmaydi ---- */
+.block-body { -webkit-overflow-scrolling: touch; }
+@media (max-width: 480px) {
+  .data-table th, .data-table td { padding: 8px 10px; }
+}
+
+/* ---- 13) Telegram / parol bloklaridagi paragraf va tugmalar
+   tor ekranda bir-biriga yopishib qolmasin ---- */
+@media (max-width: 480px) {
+  .block .pad-16 { padding: 14px; }
+  .block .pad-16 .btn { width: 100%; margin-top: 8px; }
+  .block .pad-16 p + .btn,
+  .block .pad-16 p + button { margin-top: 10px; }
+}
+
+/* ---- 14) Page-header — sarlavha uzun bo'lsa ham amallar
+   tugmasi bilan bir qatorga "siqishib" ketmasligi uchun ---- */
+@media (max-width: 480px) {
+  .page-header { flex-wrap: wrap; }
+  .page-header .actions { width: 100%; }
+  .page-header .actions button,
+  .page-header .actions .btn { flex: 1; justify-content: center; }
+}

@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TIBEX — Laboratoriya konsoli</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <script src="static/tibex-safe.js"></script>
+  <script src="static/tibex-client.js"></script>
+  <script src="static/tibex-clinic-info.js"></script>
+  <script src="static/tibex-session.js"></script>
+  <script src="static/tibex-password.js"></script>
+  <script src="static/tibex-settings.js"></script>
+<script src="static/tibex-console-theme.js"></script>
+  <script src="static/tibex-notifications.js"></script>
+<script src="static/tibex-realtime-pro.js"></script>
+
+<script src="static/tibex-hardware-scanner.js"></script>
+
+<!-- TIBEX_FIX_BUTTONS_v1 -->
+<!-- TIBEX_FIX_BUTTONS_v2 -->
+<!-- TIBEX_LAB_v1 -->
+<!-- TIBEX_LAB_FULL_v1 -->
+<!-- TIBEX_LAB_FINALIZE_v1 -->
+<!-- TIBEX_BARCODE_CAMERA_v1 -->
+<!-- TIBEX_BARCODE_CAMERA_v2 -->
+<!-- TIBEX_CAMERA_v3.1 -->
+<!-- TIBEX_CAMERA_v5 -->
+
+<!-- TIBEX_ULTIMATE_v7: Multi-engine scanner -->
+
+
+<!-- TIBEX_ULTIMATE_v7 -->
+<!-- TIBEX_ULTIMATE_v7.1 -->
+
+<!-- TIBEX_SCANNER_v9 -->
+<script src="static/vendor/html5-qrcode.min.js"></script>
+<script src="static/vendor/zxing.min.js"></script>
+<script src="static/tibex-smart-camera.js"></script>
+  <link rel="stylesheet" href="static/css/tibex-base.css">
+  <link rel="stylesheet" href="static/css/lab.fec17d3f.css">
+<link rel="stylesheet" href="static/css/tibex-console.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">TIBEX · Laboratoriya</div>
+  <div class="stat-chip user"><span>👤</span><b id="currentUserLabel">—</b></div>
+  <div class="stat-chip"><span>Navbat:</span><b id="statQueue">0</b></div>
+  <div class="stat-chip warn"><span>Tayyor:</span><b id="statReady">0</b></div>
+  <div class="stat-chip urgent"><span>🔴 Shoshilinch:</span><b id="statUrgent">0</b></div>
+  <div class="sync-status" id="syncStatus"><span class="dot"></span><span>Live sync</span></div>
+  <div class="integr-status" id="integrStatus" title="Analizatorlar integratsiyasi">—</div>
+  <!-- TIBEX_AUDIT_v1: btnScanBarcode olib tashlandi (sidebar+pastda bor) -->
+  <div class="spacer"></div>
+  <button class="icon-btn" title="Analizatorlar" id="btnAnalyzers">🔬</button>
+  <button class="icon-btn" title="Sifat nazorati" id="btnQC">📊</button>
+  <button class="icon-btn" id="btnHelp" title="Klvalatura (F1)">?</button>
+  <button class="icon-btn" title="Chiqish">🚪</button>
+</div>
+
+<div class="tabs-bar">
+  <button class="tab active" data-view="incoming">📥 Kutilayotgan <span class="badge" id="tabIncomingBadge">0</span></button>
+  <button class="tab" data-view="processing">🔬 Jarayonda <span class="badge ok" id="tabProcessingBadge">0</span></button>
+  <button class="tab" data-view="results">📊 Natijalarni kiritish <span class="badge gold" id="tabResultsBadge">0</span></button>
+  <button class="tab" data-view="verified">✅ Tasdiqlangan <span class="badge ok" id="tabVerifiedBadge">0</span></button>
+  <button class="tab" data-view="urgent">🔴 Shoshilinch <span class="badge urgent" id="tabUrgentBadge">0</span></button>
+  <div class="divider"></div>
+  <button class="tab" data-view="qc">🎯 Sifat nazorati</button>
+  <button class="tab" data-view="reports">📈 Hisobot</button>
+</div>
+
+<div class="main">
+
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">Tezkor amallar</div>
+      <button class="quick-action green" id="qaScan" data-perm="lab.edit">
+        <span class="ico">📷</span> Shtrix kod skan <span class="kbd">F2</span>
+      </button>
+  <button class="quick-action primary" id="qaCameraScan" data-perm="lab.edit">
+    <span class="ico">📸</span> Kamera <span class="kbd">F9</span>
+  </button>
+      <button class="quick-action" id="qaVerifyAll" data-perm="lab.verify">
+        <span class="ico">✅</span> Ommaviy tasdiqlash <span class="kbd">F10</span>
+      </button>
+      <button class="quick-action" id="qaPrintLabels">
+        <span class="ico">🏷️</span> Yorliq chop etish
+      </button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Bugun</div>
+      <div class="stats-grid">
+        <div class="stat-box purple"><div class="v" id="sbIncoming">0</div><div class="l">Kutilayotgan</div></div>
+        <div class="stat-box blue"><div class="v" id="sbProcessing">0</div><div class="l">Jarayonda</div></div>
+        <div class="stat-box green"><div class="v" id="sbReady">0</div><div class="l">Natija kiritildi</div></div>
+        <div class="stat-box red"><div class="v" id="sbUrgent">0</div><div class="l">Shoshilinch</div></div>
+      </div>
+    </div>
+
+    <!-- TIBEX_LAB_FULL_v1: tasdiqlangan statistikasi -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">Umumiy natijalar</div>
+      <div class="stats-grid">
+        <div class="stat-box green"><div class="v" id="sbVerified">0</div><div class="l">Tasdiqlangan</div></div>
+        <div class="stat-box gold"><div class="v" id="sbTodayTotal">0</div><div class="l">Bugun jami</div></div>
+      </div>
+    </div>
+
+    <!-- ═══ ADMIN PANELDAN SINXRON: ANALIZATORLAR ═══ -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">
+        <span>Analizatorlar</span>
+        <span class="src">· admin</span>
+      </div>
+      <div id="equipmentSidebarList">
+        <div class="empty-state-sm">Yuklanmoqda...</div>
+      </div>
+    </div>
+
+    <!-- ═══ ADMIN PANELDAN SINXRON: REAGENTLAR ═══ -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">
+        <span>Reagentlar</span>
+        <span class="src">· admin</span>
+      </div>
+      <div id="reagentsSidebarList">
+        <div class="empty-state-sm">Yuklanmoqda...</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section border-bottom-none">
+      <div class="sidebar-title">Bugungi navbatchi</div>
+      <div class="d-flex items-center gap-10">
+        <div class="avatar-circle">NQ</div>
+        <div><div class="fw-700 fs-13">Nazarova Q.</div><div class="fs-11 text-muted">Laborant · 08:00 dan</div></div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="content">
+
+    <div class="view active" data-view-content="incoming">
+      <div class="page-header"><div class="title">📥 Kutilayotgan namunalar</div></div>
+      <!-- TIBEX_LAB_FULL_v1: yangi xodim uchun qo'llanma -->
+      <div class="info-card-violet" id="labWelcome">
+        <div class="fs-28">👋</div>
+        <div class="flex-1">
+          <div class="fw-700 fs-135 text-violet-800">Laboratoriya konsoliga xush kelibsiz!</div>
+          <div class="fs-12 text-muted mt-2">
+            Shifokor so'rovi kelganda: <b>Namuna olindi</b> → <b>Analizator</b> → <b>Natija kirit</b> → <b>Tasdiqla</b>
+          </div>
+        </div>
+        <button class="dismiss-parent btn-plain">✕</button>
+      </div>
+
+      <div class="block">
+        <div class="search-bar">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="incomingSearch" placeholder="Bemor F.I.Sh, shtrix kod yoki shifokor...">
+          </div>
+          <button class="btn primary" id="btnNewOrder" data-perm="lab.create">➕ Qo'lda so'rov qo'shish</button>
+        </div>
+        <div class="filters">
+          <button class="filter-chip on" data-filter="all">Barchasi <span class="n" id="fAll">0</span></button>
+          <button class="filter-chip" data-filter="new">Yangi <span class="n" id="fNew">0</span></button>
+          <button class="filter-chip" data-filter="received">Namuna olingan <span class="n" id="fReceived">0</span></button>
+          <button class="filter-chip" data-filter="processing">Analizda <span class="n" id="fProcessing">0</span></button>
+          <button class="filter-chip urgent" data-filter="urgent">🚨 Shoshilinch <span class="n" id="fUrgent">0</span></button>
+        </div>
+        <div class="block-body">
+          <table class="data-table">
+            <thead><tr>
+              <th class="w-70">Vaqt</th>
+              <th class="w-130">Shtrix kod</th>
+              <th>Bemor</th>
+              <th class="w-200">Tahlil</th>
+              <th class="w-140">Shifokor</th>
+              <th class="w-140">Holat</th>
+              <th class="w-180"></th>
+            </tr></thead>
+            <tbody id="incomingBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" data-view-content="processing">
+      <div class="block">
+        <div class="page-header">
+          <div class="title">🔬 Jarayondagi namunalar <span class="count" id="processingCount">0</span></div>
+        </div>
+        <div class="block-body">
+          <table class="data-table">
+            <thead><tr>
+              <th class="w-130">Shtrix kod</th>
+              <th>Bemor</th>
+              <th class="w-200">Tahlil</th>
+              <th class="w-150">Boshlangan</th>
+              <th class="w-140">Holat</th>
+              <th class="w-180"></th>
+            </tr></thead>
+            <tbody id="processingBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" data-view-content="results">
+      <div class="block">
+        <div class="page-header">
+          <div class="title">📊 Natijalarni kiritish <span class="count" id="resultsOrderId">—</span></div>
+          <div class="actions">
+            <button id="btnFillDefaults" data-perm="lab.edit">📋 Tozalash</button>
+          </div>
+        </div>
+        <div class="block-body" id="resultsBody">
+          <div class="empty-state">
+            <div class="fs-48 opacity-30 mb-12">📊</div>
+            <div>Namuna tanlanmagan<br><small class="opacity-70">"Jarayonda" yoki "Kutilayotgan" tabidan tanlang</small></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" data-view-content="verified">
+      <div class="block">
+        <div class="page-header">
+          <div class="title">✅ Tasdiqlangan natijalar <span class="count" id="verifiedCount">0</span></div>
+          <div class="actions">
+            <button id="btnExportExcel">📄 Excel</button>
+            <button id="btnPrintAll">🖨 Chop etish</button>
+          </div>
+        </div>
+        <div class="block-body">
+          <table class="data-table">
+            <thead><tr>
+              <th class="w-80">Vaqt</th>
+              <th class="w-130">Shtrix kod</th>
+              <th>Bemor</th>
+              <th class="w-200">Tahlil</th>
+              <th class="w-140">Holat</th>
+              <th class="w-180"></th>
+            </tr></thead>
+            <tbody id="verifiedBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" data-view-content="urgent">
+      <div class="block border-red-300">
+        <div class="page-header bg-danger-border-red">
+          <div class="title text-red-900">🔴 Shoshilinch so'rovlar <span class="count urgent" id="urgentCount">0</span></div>
+        </div>
+        <div class="block-body">
+          <table class="data-table">
+            <thead><tr>
+              <th class="w-80">Vaqt</th>
+              <th class="w-130">Shtrix kod</th>
+              <th>Bemor</th>
+              <th class="w-200">Tahlil</th>
+              <th class="w-150">Shifokor</th>
+              <th class="w-140">Holat</th>
+              <th class="w-180"></th>
+            </tr></thead>
+            <tbody id="urgentBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" data-view-content="qc">
+      <div class="block">
+        <div class="page-header"><div class="title">🎯 Sifat nazorati (QC)</div></div>
+        <div class="report-grid">
+          <div class="report-card"><div class="v green">98.5%</div><div class="l">Aniqlik</div></div>
+          <div class="report-card"><div class="v green">CV 2.1%</div><div class="l">CBC Variatsiya</div></div>
+          <div class="report-card"><div class="v green">CV 1.8%</div><div class="l">Biokimyo Variatsiya</div></div>
+          <div class="report-card"><div class="v gold">2</div><div class="l">Ogohlantirish</div></div>
+          <div class="report-card"><div class="v green">0</div><div class="l">Xatolik</div></div>
+        </div>
+        <div class="block-body card-footer">
+          <h4 class="fs-13 fw-700 mb-12">🧪 Kunlik nazorat namunalari (admin panelidagi analizatorlardan)</h4>
+          <table class="data-table">
+            <thead><tr>
+              <th>Analizator</th><th class="w-140">Nazorat</th>
+              <th class="w-120">Kutilgan</th><th class="w-120">Olingan</th>
+              <th class="w-100">Og'ish</th><th class="w-120">Holat</th>
+            </tr></thead>
+            <tbody id="qcBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" data-view-content="reports">
+      <div class="block">
+        <div class="page-header">
+          <div class="title">📈 Bugungi hisobot</div>
+          <div class="actions">
+            <button id="btnExportReports">📄 Excel</button>
+            <button id="btnPrintReports">🖨 Chop etish</button>
+          </div>
+        </div>
+        <div class="report-grid">
+          <div class="report-card"><div class="v" id="rTotal">0</div><div class="l">Jami so'rovlar</div></div>
+          <div class="report-card"><div class="v green" id="rVerified">0</div><div class="l">Tasdiqlangan</div></div>
+          <div class="report-card"><div class="v gold" id="rPending">0</div><div class="l">Jarayonda</div></div>
+          <div class="report-card"><div class="v red" id="rUrgent">0</div><div class="l">Shoshilinch</div></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <aside class="detail-panel" id="detailPanel">
+    <div class="detail-empty" id="detailEmpty">
+      <div class="icon">🔬</div>
+      <div class="msg">Namunani tanlang<br><small class="opacity-70">yoki shtrix kodni skanerlang (F2)</small></div>
+    </div>
+    <div class="hidden" id="detailContent"></div>
+  </aside>
+</div>
+
+<div class="actions">
+  <div class="group">
+    <button class="btn" id="actPrint">🖨 Chop etish</button>
+    <button class="btn" id="actRefresh">↻ Yangilash <kbd>F5</kbd></button>
+  </div>
+  <div class="group">
+    <!-- TIBEX_AUDIT_v1: actScan olib tashlandi (sidebar'da qaScan bor) -->
+    <!-- TIBEX_AUDIT_v1: actManual olib tashlandi -->
+  </div>
+  <div class="spacer"></div>
+  <!-- TIBEX_AUDIT_v1: actVerifyAll olib tashlandi (sidebar'da qaVerifyAll bor) -->
+  <button class="big-action" id="actRelease" data-perm="lab.edit">📤 Natijalarni yuborish <kbd>F9</kbd></button>
+</div>
+
+<div class="scan-overlay" id="scanOverlay">
+  <div class="scan-box">
+    <div class="line"></div>
+    <div class="label">📷 Shtrix kodni<br>skanerga tuting</div>
+  </div>
+  <div class="scan-hint">Yoki shtrix kodni qo'lda kiriting va Enter bosing<br><small>Esc — yopish</small></div>
+  <input class="w-300 pad-12-16 border-primary-1 radius-8 font-mono fs-16 text-center ls-2" type="text" id="scanInput" placeholder="LAB-2024-XXXX">
+</div>
+
+<div class="modal-backdrop" id="modalResultInput">
+  <div class="modal wide">
+    <div class="modal-head">
+      <h3>📊 Natija kiritish — <span class="text-primary" id="modalResultOrderId">—</span></h3>
+      <button data-close>✕</button>
+    </div>
+    <div class="modal-body" id="modalResultBody"></div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Bekor qilish</button>
+      <button class="btn primary" id="btnSaveResult">💾 Saqlash va tasdiqlashga tayyorlash</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalNewOrder">
+  <div class="modal wide">
+    <div class="modal-head">
+      <h3>➕ Qo'lda lab so'rov qo'shish</h3>
+      <button data-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid-2col-12">
+        <div class="d-flex flex-col gap-5 grid-span">
+          <label class="field-label">Bemor <span class="text-danger">*</span></label>
+          <select class="input mono-input" id="noPatient"></select>
+        </div>
+        <div class="field-col">
+          <label class="field-label">Tahlil turi <span class="text-danger">*</span></label>
+          <select class="input mono-input" id="noTest">
+            <option value="cbc|Umumiy qon tahlili">Umumiy qon (CBC)</option>
+            <option value="crp|CRP">CRP</option>
+            <option value="urine|Siydik tahlili">Siydik tahlili</option>
+            <option value="bio|Biokimyo">Biokimyo</option>
+            <option value="glucose|Glyukoza">Glyukoza</option>
+            <option value="trop-i|Troponin I">Troponin I</option>
+            <option value="ecg|EKG">EKG</option>
+          </select>
+        </div>
+        <div class="field-col">
+          <label class="field-label">Muhimlik</label>
+          <select class="input mono-input" id="noPriority">
+            <option value="normal">🟢 Normal</option>
+            <option value="urgent">🟠 Shoshilinch</option>
+            <option value="stat">🔴 STAT</option>
+          </select>
+        </div>
+        <div class="d-flex flex-col gap-5 grid-span">
+          <label class="field-label">So'rov qiluvchi shifokor</label>
+          <input class="input mono-input" id="noDoctor" value="Dr. Karimov A.">
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Bekor qilish</button>
+      <button class="btn primary" id="btnSaveNewOrder">✓ Saqlash</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="modalAnalyzers">
+  <div class="modal wide">
+    <div class="modal-head">
+      <h3>🔬 Analizatorlar holati (admin panelidan)</h3>
+      <button data-close>✕</button>
+    </div>
+    <div class="modal-body" id="analyzersModalBody"></div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="kbdModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>⌨️ Klaviatura yorlig'i</h3>
+      <button data-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="kbd-grid">
+        <div class="kbd-group">
+          <h4>Tezkor amallar</h4>
+          <div class="kbd-row"><kbd>F1</kbd><span>Klaviatura yorlig'i</span></div>
+          <div class="kbd-row"><kbd>F2</kbd><span>Shtrix kod skan</span></div>
+          <div class="kbd-row"><kbd>F3</kbd><span>Qo'lda kiritish</span></div>
+          <div class="kbd-row"><kbd>F5</kbd><span>Yangilash</span></div>
+          <div class="kbd-row"><kbd>F9</kbd><span>Natijalarni yuborish</span></div>
+          <div class="kbd-row"><kbd>F10</kbd><span>Ommaviy tasdiqlash</span></div>
+        </div>
+        <div class="kbd-group">
+          <h4>Navigatsiya</h4>
+          <div class="kbd-row"><kbd>↑</kbd><kbd>↓</kbd><span>Jadvalda harakat</span></div>
+          <div class="kbd-row"><kbd>Enter</kbd><span>Keyingi ko'rsatkich</span></div>
+          <div class="kbd-row"><kbd>Esc</kbd><span>Modalni yopish</span></div>
+          <div class="kbd-row"><kbd>Ctrl</kbd><kbd>1..5</kbd><span>Tab'larga o'tish</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+<script src="static/tibex-pwd-toggle.js"></script>
+<script src="static/tibex-sync-guard.js"></script>
+  <script src="static/tibex-role-refresh.js"></script>
+  <script src="static/js/lab.d53dab63.js"></script>
+</body>
+</html>

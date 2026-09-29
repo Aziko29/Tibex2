@@ -1,0 +1,14 @@
+{
+  "root": true,
+  "env": { "browser": true, "es2021": true },
+  "parserOptions": { "ecmaVersion": 2021 },
+  "plugins": ["no-unsanitized"],
+  "globals": { "esc": "readonly", "escAttr": "readonly" },
+  "rules": {
+    "no-undef": "error",
+    "no-unsanitized/property": "warn",
+    "no-unsanitized/method": "warn",
+    "no-eval": "error",
+    "no-implied-eval": "error"
+  }
+}

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TIBEX — Tizimga kirish</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+
+  <link rel="stylesheet" href="static/css/tibex-base.css">
+
+
+  <link rel="stylesheet" href="static/css/staff-login.css">
+  <link rel="stylesheet" href="static/css/tibex-theme-dark.css">
+</head>
+<body>
+
+<button type="button" id="themeToggle" class="theme-toggle" aria-label="Mavzuni almashtirish (kunduzgi/tungi)" aria-pressed="false">🌙</button>
+
+<div class="login-wrap">
+
+  <div class="brand">
+    <div class="logo">🏥</div>
+    <h1>TIBEX</h1>
+    <p>Klinika boshqaruv tizimi</p>
+  </div>
+
+  <div class="card">
+
+    <!-- ============ XODIM (login/parol) ============ -->
+    <div id="staffAlert" class="alert"></div>
+
+    <form id="staffForm" autocomplete="on">
+      <div class="field">
+        <label for="staffLogin">Login <span class="req">*</span></label>
+        <input type="text" id="staffLogin" placeholder="admin" autocomplete="username" required autofocus>
+      </div>
+
+      <div class="field">
+        <label for="staffPassword">Parol <span class="req">*</span></label>
+        <div class="pwd-wrap">
+  <input type="password" id="staffPassword" placeholder="••••••••" autocomplete="current-password" required>
+  <button type="button" class="pwd-toggle" tabindex="-1" aria-label="Show password" title="Show password" aria-pressed="false">👁️</button>
+</div>
+      </div>
+
+      <button type="submit" class="btn primary" id="staffSubmit">
+        <span class="spinner"></span>
+        <span class="lbl">Kirish</span>
+        <span>→</span>
+      </button>
+    </form>
+
+    <div class="hint mt-16">
+      <span>💡</span>
+      <span>Login va parolni administrator beradi.</span>
+    </div>
+
+    <!-- Bemor uchun alohida sahifaga havola -->
+    <a href="bemor-login.html" class="btn ghost mt-16 link-flex-center">
+      <span class="ico">🧑</span>&nbsp;Bemorman — Bemor kirish sahifasi
+    </a>
+
+    <!-- Footer -->
+    <div class="footer">
+      <span class="dot"></span> Tizim ishlayapti · TIBEX v0.2.0
+    </div>
+
+  </div>
+
+</div>
+
+<script src="static/tibex-safe.js"></script>
+  <script src="static/tibex-client.js"></script>
+  
+<script src="static/tibex-theme-dark.js?v=20260929-csp"></script>
+<script src="static/js/staff-theme-toggle.js"></script>
+
+<script src="static/tibex-pwd-toggle.js"></script>
+  <script src="static/js/staff-login.js"></script>
+</body>
+</html>

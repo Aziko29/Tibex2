@@ -1,0 +1,80 @@
+# TIBEX Linux production: host tarmog'i orqali localhost Postgres/Redis/Nginx;
+# maxfiy qiymatlar faqat Docker secrets fayllaridan olinadi.
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    user: "0:0"
+    command: ["sh", "-c", "install -d -o redis -g redis -m 700 /run/tibex-redis && cp /run/secrets/tibex_redis_config /run/tibex-redis/redis.conf && chown redis:redis /run/tibex-redis/redis.conf && chmod 400 /run/tibex-redis/redis.conf && exec su-exec redis redis-server /run/tibex-redis/redis.conf"]
+    volumes:
+      - tibex_redis:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+    tmpfs:
+      - /run/tibex-redis
+    secrets:
+      - tibex_redis_config
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$(sed -n 's/^requirepass //p' /run/secrets/tibex_redis_config)\" redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  backend:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+    env_file: .env.public
+    network_mode: host
+    environment:
+      TIBEX_ENV: production
+      TIBEX_DATABASE_URL_FILE: /run/secrets/tibex_database_url
+      TIBEX_REDIS_URL_FILE: /run/secrets/tibex_redis_url
+      TIBEX_TELEGRAM_BOT_TOKEN_FILE: /run/secrets/tibex_telegram_bot_token
+      TIBEX_TELEGRAM_WEBHOOK_SECRET_FILE: /run/secrets/tibex_telegram_webhook_secret
+      TIBEX_SECRET_KEY_FILE: /run/secrets/tibex_secret_key
+      TIBEX_MASTER_KEY_B64_FILE: /run/secrets/tibex_master_key_b64
+      TIBEX_MASTER_KEYS_FILE: /run/tibex-secrets/master_keys.json
+      TIBEX_BLIND_INDEX_KEY_B64_FILE: /run/secrets/tibex_blind_index_key_b64
+      TIBEX_PASSWORD_PEPPER_FILE: /run/secrets/tibex_password_pepper
+    secrets:
+      - tibex_database_url
+      - tibex_redis_url
+      - tibex_telegram_bot_token
+      - tibex_telegram_webhook_secret
+      - tibex_secret_key
+      - tibex_master_key_b64
+      - tibex_master_keys
+      - tibex_blind_index_key_b64
+      - tibex_password_pepper
+    volumes:
+      - ./backups:/app/backups
+    tmpfs:
+      - /run/tibex-secrets
+
+volumes:
+  tibex_redis:
+
+secrets:
+  tibex_database_url:
+    file: ./secrets/database_url.txt
+  tibex_redis_url:
+    file: ./secrets/redis_url.txt
+  tibex_telegram_bot_token:
+    file: ./secrets/telegram_bot_token.txt
+  tibex_telegram_webhook_secret:
+    file: ./secrets/telegram_webhook_secret.txt
+  tibex_secret_key:
+    file: ./secrets/secret_key.txt
+  tibex_master_key_b64:
+    file: ./secrets/master_key_b64.txt
+  tibex_master_keys:
+    file: ./secrets/master_keys.json
+  tibex_blind_index_key_b64:
+    file: ./secrets/blind_index_key_b64.txt
+  tibex_password_pepper:
+    file: ./secrets/password_pepper.txt
+  tibex_redis_config:
+    file: ./secrets/redis.conf

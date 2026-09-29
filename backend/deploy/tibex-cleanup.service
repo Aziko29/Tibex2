@@ -1,0 +1,8 @@
+[Unit]
+Description=TIBEX eski yozuvlarni tozalash
+[Service]
+Type=oneshot
+User=tibex
+WorkingDirectory=/opt/tibex/backend
+EnvironmentFile=/etc/tibex/backup.env
+ExecStart=/opt/tibex/backend/venv/bin/python -m scripts.cleanup

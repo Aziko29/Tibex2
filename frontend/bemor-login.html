@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TIBEX — Bemor uchun kirish</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+<link rel="stylesheet" href="static/css/tibex-base.css">
+<link rel="stylesheet" href="static/css/patient.7b632841.css">
+<link rel="stylesheet" href="static/css/bemor-login.css">
+</head>
+<body>
+
+<div class="login-wrap">
+
+  <div class="brand">
+    <div class="logo">🧑</div>
+    <h1>TIBEX</h1>
+    <p>Bemor kabinetiga kirish</p>
+  </div>
+
+  <div class="card">
+
+    <div class="card-body">
+
+      <div id="patientAlert" class="alert"></div>
+
+      <!-- Bosqich 1: Telefon -->
+      <div class="otp-step active" id="otpStepPhone">
+        <div class="field">
+          <label for="patientPhone">Telefon raqam <span class="req">*</span></label>
+          <input type="tel" id="patientPhone" placeholder="+998 90 123 45 67"
+                 autocomplete="tel" inputmode="tel" required autofocus>
+          <div class="hint">
+            <span>💡</span>
+            <span>Bot orqali ulangan bemor raqamingizni kiriting. Kod Telegramga keladi; admin bergan kodni ham shu yerda kiritasiz.</span>
+          </div>
+        </div>
+
+        <a class="btn ghost" id="patientTelegramLink" href="#" target="_blank" rel="noopener" hidden>
+          ✈️ Telegram botni ochish va raqamni ulash
+        </a>
+
+        <button type="button" class="btn primary" id="otpSendBtn">
+          <span class="spinner"></span>
+          <span class="lbl">Telegram kodini so'rash</span>
+          <span>✈️</span>
+        </button>
+      </div>
+
+      <!-- Bosqich 2: Kod -->
+      <div class="otp-step" id="otpStepCode">
+        <div class="login-title">
+          <div class="login-field-label">
+            Telegram yoki admin bergan kod:
+          </div>
+          <div class="login-mono-label" id="otpSentPhone">+998 ** *** ** **</div>
+        </div>
+
+        <div class="field">
+          <label>6 xonali kod <span class="req">*</span></label>
+          <div class="otp-inputs" id="otpInputs">
+            <input type="text" inputmode="numeric" maxlength="1" data-idx="0" autocomplete="one-time-code">
+            <input type="text" inputmode="numeric" maxlength="1" data-idx="1" autocomplete="off">
+            <input type="text" inputmode="numeric" maxlength="1" data-idx="2" autocomplete="off">
+            <input type="text" inputmode="numeric" maxlength="1" data-idx="3" autocomplete="off">
+            <input type="text" inputmode="numeric" maxlength="1" data-idx="4" autocomplete="off">
+            <input type="text" inputmode="numeric" maxlength="1" data-idx="5" autocomplete="off">
+          </div>
+          <div class="countdown" id="otpCountdown">05:00</div>
+        </div>
+
+        <button type="button" class="btn primary" id="otpVerifyBtn">
+          <span class="spinner"></span>
+          <span class="lbl">Tasdiqlash</span>
+          <span>✓</span>
+        </button>
+
+        <button type="button" class="btn ghost" id="otpBackBtn">
+          ← Telefon raqamni o'zgartirish
+        </button>
+      </div>
+
+      <!-- Xodim uchun alohida sahifaga havola -->
+      <a href="login.html" class="btn ghost mt-16 staff-link">
+        <span class="ico">👨‍⚕️</span>&nbsp;Xodimman — Xodim kirish sahifasi
+      </a>
+
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <span class="dot"></span> Tizim ishlayapti · TIBEX v0.2.0
+    </div>
+
+  </div>
+
+</div>
+
+<script src="static/tibex-safe.js"></script>
+<script src="static/tibex-client.js"></script>
+<script src="static/js/bemor-login.js"></script>
+</body>
+</html>

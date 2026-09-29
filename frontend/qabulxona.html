@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TIBEX — Qabulxona</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<!-- TIBEX_QUEUE_CONSOLE_v1 -->
+
+<script src="static/tibex-safe.js"></script>
+<script src="static/tibex-client.js"></script>
+<script src="static/tibex-clinic-info.js"></script>
+<script src="static/tibex-session.js"></script>
+<script src="static/tibex-password.js"></script>
+<script src="static/tibex-settings.js"></script>
+<script src="static/tibex-console-theme.js"></script>
+<script src="static/tibex-notifications.js"></script>
+<script src="static/tibex-realtime-pro.js"></script>
+<!-- TIBEX_FIX_BUTTONS_v1 -->
+<!-- TIBEX_FIX_BUTTONS_v2 -->
+<!-- TIBEX_QABULXONA_IMPROVE_v1 -->
+<!-- TIBEX_QABULXONA_DEDUPE_v2 -->
+<!-- TIBEX_QABULXONA_MOVE_BTN_v1 -->
+  <link rel="stylesheet" href="static/css/tibex-base.css">
+  <link rel="stylesheet" href="static/css/reception.c516e04e.css">
+<link rel="stylesheet" href="static/css/tibex-console.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">TIBEX · Qabulxona</div>
+  <div class="stat-chip blue"><span>Kutayotgan:</span><b id="statWaiting">0</b></div>
+  <div class="stat-chip"><span>Keldi:</span><b id="statArrived">0</b></div>
+  <div class="stat-chip gold"><span>Qabulda:</span><b id="statInProgress">0</b></div>
+  <div class="stat-chip"><span>Yakunlangan:</span><b id="statCompleted">0</b></div>
+  <div class="sync-status" id="syncStatus"><span class="dot"></span><span>Live</span></div>
+  <div class="spacer"></div>
+  <!-- TIBEX_QABULXONA_MOVE_BTN_v1: btnNewPatient → sidebar'ga o'tkazildi -->
+  <button class="icon-btn" id="btnHelp" title="Yordam (F1)">?</button>
+  <button class="icon-btn" title="Chiqish">🚪</button>
+</div>
+
+<div class="tabs-bar">
+  <button class="tab active" data-view="dashboard">📊 Bugun</button>
+  <button class="tab" data-view="patients">🧑 Bemorlar <span class="badge" id="tabPatientsBadge">0</span></button>
+  <button class="tab" data-view="appointments">📅 Navbatlar <span class="badge" id="tabApptsBadge">0</span></button>
+  <button class="tab" data-view="payments">💰 To'lovlar</button>
+</div>
+
+<div class="main">
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">Tezkor amallar</div>
+      <!-- TIBEX_QABULXONA_MOVE_BTN_v1: eng muhim amal — birinchi -->
+      <button class="quick-action green" id="btnNewPatient">
+        <span class="ico">🧑</span> Yangi bemor <span class="kbd">F2</span>
+      </button>
+      <button class="quick-action primary" id="qaNewAppt"><span class="ico">📅</span> Yangi navbat <span class="kbd">F3</span></button>
+      <button class="quick-action purple" id="qaSearch"><span class="ico">🔍</span> Bemor qidirish <span class="kbd">F4</span></button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Bugun</div>
+      <div class="stats-grid">
+        <div class="stat-box blue"><div class="v" id="sbTotal">0</div><div class="l">Jami</div></div>
+        <div class="stat-box gold"><div class="v" id="sbWaiting">0</div><div class="l">Kutmoqda</div></div>
+        <div class="stat-box green"><div class="v" id="sbDone">0</div><div class="l">Yakun</div></div>
+        <div class="stat-box red"><div class="v" id="sbDebt">0</div><div class="l">Qarz</div></div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Shifokorlar navbati</div>
+      <div id="sbDoctors"></div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Operator</div>
+      <div class="d-flex items-center gap-10">
+        <div class="avatar-circle-navy" id="userAvatar">--</div>
+        <div><div class="fw-700 fs-13" id="userName">—</div><div class="fs-11 text-muted" id="userRole">—</div></div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="view active" data-view-content="dashboard">
+      <div class="block">
+        <div class="page-header">
+          <div class="title">📊 Bugungi ko'rsatkichlar</div>
+          <div class="actions"><button class="btn" id="btnRefresh">↻ Yangilash</button></div>
+        </div>
+        <div class="overview-grid">
+          <div class="overview-card blue"><div class="v" id="ovTotal">0</div><div class="l">Bugungi navbatlar</div><div class="sub" id="ovTotalSub">—</div></div>
+          <div class="overview-card gold"><div class="v" id="ovWaiting">0</div><div class="l">Kutayotganlar</div><div class="sub" id="ovWaitingSub">—</div></div>
+          <div class="overview-card green"><div class="v" id="ovCompleted">0</div><div class="l">Yakunlangan</div><div class="sub" id="ovCompletedSub">—</div></div>
+          <div class="overview-card purple"><div class="v" id="ovRevenue">0</div><div class="l">Bugungi tushum</div><div class="sub" id="ovRevenueSub">—</div></div>
+          <div class="overview-card red"><div class="v" id="ovDebt">0</div><div class="l">Qarzdorlik</div><div class="sub" id="ovDebtSub">—</div></div>
+        </div>
+      </div>
+
+      <div class="block">
+        <div class="page-header">
+          <div class="title">📅 Bugungi navbatlar <span class="count" id="todayCount">0</span></div>
+          <div class="actions">
+            <button class="btn success" id="btnTodayNewAppt">➕ Yangi navbat</button>
+          </div>
+        </div>
+        <div class="block-body">
+          <table class="data-table">
+            <thead><tr>
+              <th class="w-70">Vaqt</th>
+              <th class="w-60">Prior.</th>
+              <th>Bemor</th>
+              <th class="w-150">Shifokor</th>
+              <th class="w-130">Xizmat</th>
+              <th class="w-110">Holat</th>
+              <th class="w-110">To'lov</th>
+              <th class="w-180"></th>
+            </tr></thead>
+            <tbody id="todayBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PATIENTS -->
+    <div class="view" data-view-content="patients">
+      <div class="block">
+        <div class="page-header"><div class="title">🧑 Bemorlar ro'yxati</div></div>
+        <div class="search-bar">
+          <div class="search-input-wrap"><span class="search-icon">🔍</span><input type="text" id="patientsSearch" placeholder="F.I.Sh, telefon yoki ID..."></div>
+          <!-- TIBEX_AUDIT_v1: btnNewPatient2 olib tashlandi (topbar'da bor) -->
+        </div>
+        <div class="filters">
+          <button class="filter-chip on" data-pfilter="all">Barchasi <span class="n" id="pfAll">0</span></button>
+          <button class="filter-chip" data-pfilter="recent">🆕 Oxirgi 7 kun</button>
+          <button class="filter-chip" data-pfilter="today">📅 Bugun qo'shilgan</button>
+        </div>
+        <div class="block-body">
+          <table class="data-table">
+            <thead><tr>
+              <th class="w-70">ID</th><th>F.I.Sh</th>
+              <th class="w-160">Telefon</th><th class="w-70">Yosh</th>
+              <th class="w-80">Jins</th><th class="w-80">Qon</th>
+              <th class="w-220"></th>
+            </tr></thead>
+            <tbody id="patientsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- APPOINTMENTS -->
+    <div class="view" data-view-content="appointments">
+      <div class="block">
+        <div class="page-header"><div class="title">📅 Navbatlar ro'yxati</div></div>
+        <div class="search-bar">
+          <div class="search-input-wrap"><span class="search-icon">🔍</span><input type="text" id="apptsSearch" placeholder="Bemor yoki shifokor..."></div>
+          <!-- TIBEX_QABULXONA_IMPROVE_v1: btnNewAppt3 olib tashlandi -->
+        </div>
+        <div class="filters">
+          <button class="filter-chip on" data-afilter="all">Barchasi <span class="n" id="afAll">0</span></button>
+          <button class="filter-chip" data-afilter="today">📅 Bugun <span class="n" id="afToday">0</span></button>
+          <button class="filter-chip" data-afilter="tomorrow">⏭ Ertaga <span class="n" id="afTomorrow">0</span></button>
+          <button class="filter-chip" data-afilter="waiting">⏳ Kutmoqda <span class="n" id="afWaiting">0</span></button>
+          <!-- TIBEX_QABULXONA_IMPROVE_v1: lab statuslari -->
+          <button class="filter-chip badge-warn" data-afilter="lab_waiting">🔬 Lab kutish <span class="n" id="afLabWaiting">0</span></button>
+          <button class="filter-chip badge-green" data-afilter="lab_ready">✅ Lab tayyor <span class="n" id="afLabReady">0</span></button>
+          <button class="filter-chip" data-afilter="completed">✓ Yakun <span class="n" id="afDone">0</span></button>
+        </div>
+        <div class="block-body">
+          <table class="data-table">
+            <thead><tr>
+              <th class="w-90">Sana</th>
+              <th class="w-70">Vaqt</th>
+              <th class="w-60">Prior.</th>
+              <th>Bemor</th>
+              <th class="w-150">Shifokor</th>
+              <th class="w-130">Xizmat</th>
+              <th class="w-110">Holat</th>
+              <th class="w-180"></th>
+            </tr></thead>
+            <tbody id="apptsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAYMENTS -->
+    <div class="view" data-view-content="payments">
+      <div class="block">
+        <div class="page-header">
+          <div class="title">💰 To'lov kutayotganlar <span class="count" id="payPendingCount">0</span></div>
+        </div>
+        <div class="block-body">
+          <table class="data-table">
+            <thead><tr>
+              <th class="w-90">Sana</th>
+              <th class="w-70">Vaqt</th>
+              <th>Bemor</th>
+              <th class="w-150">Shifokor</th>
+              <th class="w-130">To'langan</th>
+              <th class="w-130">Qarz</th>
+              <th class="w-160"></th>
+            </tr></thead>
+            <tbody id="payPendingBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="block">
+        <div class="page-header">
+          <div class="title">✓ Bugungi to'lovlar <span class="count" id="payTodayCount">0</span></div>
+          <div class="actions"><span class="font-mono fw-700 text-ok" id="payTodaySum">0</span></div>
+        </div>
+        <div class="block-body">
+          <table class="data-table">
+            <thead><tr>
+              <th class="w-70">#</th><th class="w-70">Vaqt</th>
+              <th>Bemor</th><th class="w-130">Summa</th>
+              <th class="w-110">Usul</th><th class="w-150">Kassir</th>
+            </tr></thead>
+            <tbody id="payTodayBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="actions">
+  <div class="group">
+    <!-- TIBEX_QABULXONA_IMPROVE_v1: actRefresh olib tashlandi -->
+  </div>
+  <div class="group">
+    <!-- TIBEX_AUDIT_v1: actNewPatient olib tashlandi -->
+    <!-- TIBEX_QABULXONA_DEDUPE_v2: actNewAppt olib tashlandi (sidebar'da qaNewAppt bor) -->
+    <!-- TIBEX_QABULXONA_DEDUPE_v2: actSearch olib tashlandi (sidebar'da qaSearch bor) -->
+  </div>
+  <div class="spacer"></div>
+  <!-- TIBEX_QABULXONA_DEDUPE_v2: actToday olib tashlandi (tab'da bor) -->
+</div>
+
+<!-- MODAL: PATIENT -->
+<div class="modal-backdrop" id="modalPatient">
+  <div class="modal wide">
+    <div class="modal-head">
+      <h3 id="patientModalTitle">🧑 Yangi bemor</h3>
+      <button class="close" data-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field grid-span"><label>F.I.Sh <span class="req">*</span></label><input class="input" id="pName" placeholder="Aliyev Sardor" autofocus></div>
+        <div class="form-field"><label>Telefon <span class="req">*</span></label><input class="input" id="pPhone" placeholder="+998 90 123 45 67"></div>
+        <div class="form-field"><label>Yosh <span class="req">*</span></label><input class="input" id="pAge" type="number" placeholder="34"></div>
+        <div class="form-field"><label>Jins <span class="req">*</span></label>
+          <select class="select" id="pGender"><option value="Erkak">Erkak</option><option value="Ayol">Ayol</option></select>
+        </div>
+        <div class="form-field"><label>Qon guruhi</label>
+          <select class="select" id="pBlood">
+            <option>O+</option><option>O-</option><option>A+</option><option>A-</option>
+            <option>B+</option><option>B-</option><option>AB+</option><option>AB-</option><option>Noma'lum</option>
+          </select>
+        </div>
+        <div class="form-field grid-span"><label>Manzil</label><input class="input" id="pAddress" placeholder="Toshkent sh., ..."></div>
+        <div class="form-field grid-span">
+          <label>⚠️ Allergiyalar</label>
+          <div class="tags-input-wrap" id="pAllergyWrap"><input type="text" id="pAllergyInput" placeholder="Yozing va Enter bosing..."></div>
+        </div>
+        <div class="form-field grid-span">
+          <label>💊 Surunkali kasalliklar</label>
+          <div class="tags-input-wrap" id="pChronicWrap"><input type="text" id="pChronicInput" placeholder="Yozing va Enter bosing..."></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Bekor qilish</button>
+      <button class="btn primary" id="btnSavePatient">✓ Saqlash</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: APPOINTMENT -->
+<div class="modal-backdrop" id="modalAppt">
+  <div class="modal wide">
+    <div class="modal-head">
+      <h3 id="apptModalTitle">📅 Yangi navbat</h3>
+      <button class="close" data-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field grid-span">
+          <label>Bemor <span class="req">*</span></label>
+          <input class="input" id="aPatientSearch" placeholder="F.I.Sh yoki telefon bo'yicha qidirish..." autofocus>
+          <div class="mt-6" id="aPatientResults"></div>
+          <div class="hidden pad-10 bg-primary-tint radius-6 mt-6 fw-600" id="aPatientSelected"></div>
+        </div>
+        <div class="form-field"><label>Shifokor <span class="req">*</span></label>
+          <select class="select" id="aDoctor"></select>
+        </div>
+        <div class="form-field"><label>Xizmat <span class="req">*</span></label>
+          <select class="select" id="aService"></select>
+        </div>
+        <div class="form-field"><label>Sana <span class="req">*</span></label>
+          <input class="input" id="aDate" type="date">
+        </div>
+        <div class="form-field"><label>Vaqt <span class="req">*</span></label>
+          <input class="input" id="aTime" type="time">
+        </div>
+        <div class="form-field grid-span">
+          <label>Muhimlik darajasi</label>
+          <div class="priority-selector" id="aPriority">
+            <button type="button" class="priority-option selected" data-priority="normal"><span class="ico">🟢</span><div class="lbl">Oddiy</div></button>
+            <button type="button" class="priority-option" data-priority="urgent"><span class="ico">🟡</span><div class="lbl">Shoshilinch</div></button>
+            <button type="button" class="priority-option" data-priority="stat"><span class="ico">🔴</span><div class="lbl">STAT</div></button>
+          </div>
+        </div>
+        <div class="form-field grid-span"><label>Shikoyat</label><textarea class="textarea" id="aComplaint" rows="2" placeholder="Bemor shikoyati (ixtiyoriy)..."></textarea></div>
+        <div class="form-field"><label>To'langan (so'm)</label><input class="input" id="aPaid" type="number" value="0"></div>
+        <div class="form-field"><label>Qarz (so'm)</label><input class="input" id="aDebt" type="number" value="0"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Bekor qilish</button>
+      <button class="btn primary" id="btnSaveAppt">✓ Navbat yaratish</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PAYMENT -->
+<div class="modal-backdrop" id="modalPayment">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>💰 To'lov qabul qilish</h3>
+      <button class="close" data-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="tint-box-primary">
+        <div class="fw-700 fs-15" id="payPatientName">—</div>
+        <div class="fs-12 text-muted mt-2" id="payPatientInfo">—</div>
+      </div>
+      <div class="form-grid">
+        <div class="form-field grid-span">
+          <label>To'lov summasi (so'm) <span class="req">*</span></label>
+          <input class="input fs-20 fw-700 text-right" id="payAmount" type="number" placeholder="0" autofocus>
+        </div>
+        <div class="form-field grid-span">
+          <label>To'lov usuli <span class="req">*</span></label>
+          <select class="select" id="payMethod">
+            <option value="cash">💵 Naqd</option>
+            <option value="card">💳 Karta</option>
+            <option value="online">📱 Onlayn</option>
+          </select>
+        </div>
+      </div>
+      <div class="mono-box-sm">
+        <div class="kv-row-tight"><span>Avval to'langan:</span><b class="font-mono" id="payOldPaid">0</b></div>
+        <div class="kv-row-tight"><span>Qarz:</span><b class="font-mono text-danger" id="payOldDebt">0</b></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Bekor qilish</button>
+      <button class="btn success" id="btnSavePayment">✓ To'lovni qabul qilish</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: HISTORY -->
+<div class="modal-backdrop" id="modalHistory">
+  <div class="modal wide">
+    <div class="modal-head">
+      <h3>📋 Bemor tarixi</h3>
+      <button class="close" data-close>✕</button>
+    </div>
+    <div class="modal-body" id="historyBody"></div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Yopish</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: HELP -->
+<div class="modal-backdrop" id="modalHelp">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>⌨️ Klaviatura yorlig'i</h3>
+      <button class="close" data-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="grid-2col-20">
+        <div>
+          <h4 class="section-label">Tezkor amallar</h4>
+          <div class="kv-row"><span><kbd class="kbd-chip">F1</kbd></span><span class="text-muted">Yordam</span></div>
+          <div class="kv-row"><span><kbd class="kbd-chip">F2</kbd></span><span class="text-muted">Yangi bemor</span></div>
+          <div class="kv-row"><span><kbd class="kbd-chip">F3</kbd></span><span class="text-muted">Yangi navbat</span></div>
+          <div class="kv-row"><span><kbd class="kbd-chip">F4</kbd></span><span class="text-muted">Qidirish</span></div>
+          <div class="kv-row"><span><kbd class="kbd-chip">F5</kbd></span><span class="text-muted">Yangilash</span></div>
+          <div class="kv-row"><span><kbd class="kbd-chip">Esc</kbd></span><span class="text-muted">Modalni yopish</span></div>
+        </div>
+        <div>
+          <h4 class="section-label">Navigatsiya</h4>
+          <div class="kv-row"><span><kbd class="kbd-chip">Ctrl</kbd>+<kbd class="kbd-chip">1</kbd></span><span class="text-muted">Bugun</span></div>
+          <div class="kv-row"><span><kbd class="kbd-chip">Ctrl</kbd>+<kbd class="kbd-chip">2</kbd></span><span class="text-muted">Bemorlar</span></div>
+          <div class="kv-row"><span><kbd class="kbd-chip">Ctrl</kbd>+<kbd class="kbd-chip">3</kbd></span><span class="text-muted">Navbatlar</span></div>
+          <div class="kv-row"><span><kbd class="kbd-chip">Ctrl</kbd>+<kbd class="kbd-chip">4</kbd></span><span class="text-muted">To'lovlar</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+<script src="static/tibex-sync-guard.js"></script>
+<script src="static/tibex-role-refresh.js"></script>
+<script src="static/js/reception.89e7da86.js"></script>
+</body>
+</html>

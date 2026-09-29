@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="uz" data-theme="light" data-tibex-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>TIBEX — Admin konsoli</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="stylesheet" href="static/css/tibex-base.css">
+<link rel="stylesheet" href="static/css/admin.css">
+<link rel="stylesheet" href="static/css/tibex-console.css">
+<link rel="stylesheet" href="static/css/admin-csp.css">
+</head>
+<body>
+
+<div class="boot" id="boot">
+  <div class="boot-logo">TIBEX</div>
+  <div class="boot-sub">Admin konsoli yuklanmoqda…</div>
+  <div class="spin lg"></div>
+</div>
+
+<div class="app" id="app" hidden>
+
+  <header class="topbar">
+    <button class="hamburger" id="btnMenu" aria-label="Menyu">☰</button>
+    <div class="brand">
+      <span class="brand-mark">T</span>
+      <span class="brand-txt"><b>TIBEX</b> · Admin</span>
+    </div>
+    <div class="tb-stats" id="tbStats">
+      <div class="tb-stat"><span>Xodimlar:</span><b id="tbsUsers">0</b></div>
+      <div class="tb-stat"><span>Bemorlar:</span><b id="tbsPatients">0</b></div>
+      <div class="tb-stat"><span>Uskunalar:</span><b id="tbsEquipment">0</b></div>
+      <div class="tb-stat"><span>Tushum:</span><b id="tbsRevenue" class="gold">0</b></div>
+      <div class="tb-stat"><span>Smena:</span><b id="tbsShift" class="green">0</b></div>
+    </div>
+    <div class="tb-spacer"></div>
+    <div class="live" id="livePill"><span class="live-dot"></span><span id="liveText">Live sync</span></div>
+    <div class="tb-actions">
+      <button class="tb-btn" id="btnNotif" title="Bildirishnomalar">🔔<span class="dot-red" id="notifDot" hidden></span></button>
+      <button class="tb-btn" id="btnHelp" title="Yordam (F1)">?</button>
+      <button class="tb-btn" id="btnLogout" title="Chiqish">⏻</button>
+    </div>
+  </header>
+
+  <nav class="tabbar" id="tabbar">
+    <div class="tab-group">
+      <span class="tab-label">Asosiy</span>
+      <button class="tab active" data-view="overview"><span>📊</span>Umumiy</button>
+      <button class="tab" data-view="patients"><span>🧑</span>Bemorlar<b class="tab-count" id="tcPatients">0</b></button>
+      <button class="tab" data-view="users"><span>👥</span>Xodimlar<b class="tab-count" id="tcUsers">0</b></button>
+      <button class="tab" data-view="roles"><span>🛡</span>Rollar<b class="tab-count" id="tcRoles">0</b></button>
+      <button class="tab" data-view="doctors"><span>👨‍⚕️</span>Shifokorlar<b class="tab-count" id="tcDoctors">0</b></button>
+      <button class="tab" data-view="services"><span>🩺</span>Xizmatlar</button>
+    </div>
+    <span class="tab-sep"></span>
+    <div class="tab-group">
+      <span class="tab-label">Resurslar</span>
+      <button class="tab" data-view="equipment"><span>🔬</span>Uskunalar<b class="tab-count warn" id="tcEquipment">0</b></button>
+      <button class="tab" data-view="reagents"><span>🧪</span>Reagentlar<b class="tab-count warn" id="tcReagents">0</b></button>
+      <button class="tab" data-view="integrations"><span>🔌</span>Integratsiyalar<b class="tab-count purple" id="tcIntegrations">0</b></button>
+    </div>
+    <span class="tab-sep"></span>
+    <div class="tab-group">
+      <span class="tab-label">Nazorat</span>
+      <button class="tab" data-view="medical"><span>📋</span>Tibbiy</button>
+      <button class="tab" data-view="audit"><span>📜</span>Audit</button>
+      <button class="tab" data-view="reports"><span>📈</span>Hisobotlar</button>
+    </div>
+    <span class="tab-sep"></span>
+    <div class="tab-group">
+      <span class="tab-label">Tizim</span>
+      <button class="tab" data-view="settings"><span>⚙️</span>Sozlamalar</button>
+      <button class="tab" data-view="system"><span>🔧</span>Tizim</button>
+    </div>
+  </nav>
+
+  <div class="main">
+    <aside class="sidebar" id="sidebar">
+      <section class="sb-sec">
+        <h3 class="sb-title">Yangi qo'shish</h3>
+        <button class="sb-btn green" id="qaNewPatient"><span>😊</span>Yangi bemor</button>
+        <button class="sb-btn blue" id="qaNewUser"><span>👤</span>Yangi xodim<kbd>F4</kbd></button>
+        <button class="sb-btn purple" id="qaNewRole"><span>🛡</span>Yangi rol</button>
+        <button class="sb-btn gold" id="qaNewEquip"><span>🔬</span>Yangi uskuna</button>
+        <button class="sb-btn pink" id="qaNewIntegr"><span>🔌</span>Integratsiya</button>
+      </section>
+      <section class="sb-sec">
+        <h3 class="sb-title">Konsollar holati</h3>
+        <div id="sbConsoles" class="sb-consoles"></div>
+      </section>
+      <section class="sb-sec">
+        <h3 class="sb-title">Uskunalar holati</h3>
+        <div class="sb-eq">
+          <div class="eq-row"><span class="eq-dot ok"></span>Ishlaydi<b id="eqWorking">0</b></div>
+          <div class="eq-row"><span class="eq-dot warn"></span>Kalibrovka<b id="eqCalib">0</b></div>
+          <div class="eq-row"><span class="eq-dot purple"></span>Ta'mirda<b id="eqMaint">0</b></div>
+          <div class="eq-row"><span class="eq-dot err"></span>Nosoz<b id="eqBroken">0</b></div>
+        </div>
+      </section>
+      <section class="sb-sec sb-user">
+        <h3 class="sb-title">Administrator</h3>
+        <div class="sb-user-card">
+          <div class="sb-user-av" id="sbAvatar">AD</div>
+          <div class="sb-user-meta">
+            <div class="sb-user-nm" id="sbUserName">Admin</div>
+            <div class="sb-user-rl" id="sbUserRole">Superuser</div>
+          </div>
+        </div>
+      </section>
+    </aside>
+
+    <main class="content" id="content"></main>
+  </div>
+
+  <footer class="bottombar">
+    <div class="bb-left">
+      <button class="bb-btn" id="bbRefresh"><span>⟳</span>Yangilash<kbd>F5</kbd></button>
+    </div>
+    <div class="bb-spacer"></div>
+    <div class="bb-right">
+      <button class="bb-btn green" id="bbBackup"><span>💾</span>Zaxira<kbd>F10</kbd></button>
+      <button class="bb-btn blue" id="bbReports"><span>📈</span>Hisobotlar</button>
+    </div>
+  </footer>
+
+</div>
+
+<div class="modal-bg" id="modalBg"><div class="modal" id="modalBox"></div></div>
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script src="static/tibex-safe.js"></script>
+<script src="static/tibex-client.js"></script>
+<script src="static/tibex-console-theme.js"></script>
+<script src="static/js/admin.js?v=20260929-csp"></script>
+</body>
+</html>

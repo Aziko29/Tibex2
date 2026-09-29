@@ -1,0 +1,87 @@
+/* ============================================================
+   TIBEX MODERN THEME — faqat ko'rinish qatlami.
+   Hech qanday HTML struktura/ID/klass o'zgartirilmagan;
+   shuning uchun barcha tugma, modal, API chaqiruvlar ishlayveradi.
+   Bu fayl admin.68f1f4d8.css'dan KEYIN ulanadi, shu sabab
+   pastdagi qoidalar avvalgilarini bemalol qayta yozadi.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root{
+  --bg:#F8FAFC; --panel:#FFFFFF; --border:#E2E8F0; --text:#1E293B; --muted:#64748B; --dim:#94A3B8;
+  --primary:#2563EB; --primary-dark:#1D4ED8; --primary-tint:#EFF6FF;
+  --danger:#EF4444; --danger-tint:#FEF2F2;
+  --warn:#F59E0B; --warn-tint:#FFFBEB;
+  --ok:#10B981; --ok-tint:#ECFDF5;
+  --dark:#0F172A; --info:#0EA5E9; --info-tint:#F0F9FF;
+  --gold:#D97706; --gold-tint:#FFFBEB; --purple:#7C3AED; --purple-tint:#F5F3FF;
+  --locked:#475569; --locked-tint:#F1F5F9;
+}
+
+body{ font-family:'Inter',-apple-system,'Segoe UI',Roboto,sans-serif; background:var(--bg); }
+
+/* ---- Topbar: dark navy -> light, Vercel/Linear uslubida ---- */
+.topbar{
+  background:var(--panel); color:var(--text); border-bottom:1px solid var(--border);
+  height:56px; box-shadow:0 1px 2px rgba(15,23,42,.03);
+}
+.topbar .logo{ color:var(--primary); border-right-color:var(--border); font-weight:800; }
+.topbar button{ color:var(--muted); }
+.topbar button:hover{ background:#F1F5F9; color:var(--text); }
+.topbar kbd{ background:#F1F5F9; color:var(--muted); }
+.stat-chip{ background:#F1F5F9; color:var(--muted); border:1px solid var(--border); }
+.stat-chip b{ color:var(--text); }
+.sync-status{ background:var(--ok-tint); color:#047857; }
+.icon-btn .badge-dot{ border-color:var(--panel); }
+
+/* ---- Tabs: pill, accent-filled active state ---- */
+.tabs-bar{ background:var(--panel); border-bottom:1px solid var(--border); }
+.tab{ border-radius:8px; font-weight:600; color:var(--muted); }
+.tab:hover{ background:#F1F5F9; color:var(--text); }
+.tab.active{ background:var(--primary-tint); color:var(--primary-dark); }
+.tab.active::after{ display:none; }
+.tabs-bar .tab-group-label{ color:var(--dim); }
+
+/* ---- Sidebar & quick actions ---- */
+.sidebar{ background:var(--panel); border-right:1px solid var(--border); }
+.quick-action{ border-radius:10px; border-color:var(--border); }
+.quick-action:hover{ box-shadow:0 2px 8px rgba(37,99,235,.12); }
+.stat-box{ background:#F8FAFC; border-radius:10px; }
+
+/* ---- Cards / blocks: rounded-xl + soft shadow ---- */
+.block, .overview-card, .console-card, .role-card, .integration-card,
+.settings-section, .locked-section, .report-card{
+  border-radius:14px; border-color:var(--border);
+  box-shadow:0 1px 3px rgba(15,23,42,.04), 0 1px 2px rgba(15,23,42,.03);
+}
+.role-card:hover, .integration-card:hover{
+  box-shadow:0 8px 20px rgba(15,23,42,.08); transform:translateY(-2px);
+}
+.overview-grid, .console-grid, .roles-grid, .integrations-grid, .report-grid{ gap:14px; }
+
+/* ---- Buttons ---- */
+.btn, .row-actions button, .quick-action{ border-radius:9px; font-weight:600; }
+.btn.primary{ background:var(--primary); border-color:var(--primary); }
+.btn.primary:hover{ background:var(--primary-dark); }
+.big-action{ border-radius:10px; box-shadow:0 4px 12px rgba(37,99,235,.25); }
+
+/* ---- Filter chips & data tables ---- */
+.filter-chip{ border-radius:999px; font-weight:600; }
+.filter-chip.on{ background:var(--primary); border-color:var(--primary); }
+.data-table th{ background:#F8FAFC; color:var(--dim); }
+.data-table tbody tr:hover{ background:#F8FAFC; }
+.status{ border-radius:999px; font-weight:700; }
+
+/* ---- Modals ---- */
+.modal{ border-radius:16px; box-shadow:0 24px 60px rgba(15,23,42,.25); }
+.modal-head{ border-bottom-color:var(--border); }
+.modal-foot{ background:#F8FAFC; border-top-color:var(--border); }
+.input, .textarea, .select{ border-radius:9px; }
+.input:focus, .textarea:focus, .select:focus{ box-shadow:0 0 0 3px rgba(37,99,235,.12); }
+
+/* ---- Toggle switch already uses --ok, palette override above is enough ---- */
+
+@media (max-width: 700px){
+  .topbar{ padding:0 10px; }
+}

@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TIBEX — Kassa konsoli</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+
+  <script src="static/tibex-safe.js"></script>
+  <script src="static/tibex-client.js"></script>
+  <script src="static/tibex-clinic-info.js"></script>
+  <script src="static/tibex-session.js"></script>
+  <script src="static/tibex-password.js"></script>
+  <script src="static/tibex-settings.js"></script>
+<script src="static/tibex-console-theme.js"></script>
+  <script src="static/tibex-notifications.js"></script>
+<script src="static/tibex-realtime-pro.js"></script>
+
+<!-- TIBEX_FIX_BUTTONS_v1 -->
+<!-- TIBEX_FIX_BUTTONS_v2 -->
+<!-- TIBEX_KASSA_v1 -->
+  <link rel="stylesheet" href="static/css/tibex-base.css">
+  <link rel="stylesheet" href="static/css/cashier.80908130.css">
+<link rel="stylesheet" href="static/css/tibex-console.css">
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="logo">TIBEX · Kassa</div>
+  <div class="stat-chip user">
+    <span>👤</span>
+    <b id="currentUserLabel">—</b>
+  </div>
+  <div class="stat-chip gold"><span>Kassada:</span><b id="statCash">0</b></div>
+  <div class="stat-chip"><span>Bugun:</span><b id="statToday">0</b></div>
+  <div class="stat-chip warn"><span>Kutilmoqda:</span><b id="statPending">0</b></div>
+  <div class="stat-chip red"><span>Qarzdorlik:</span><b id="statDebt">0</b></div>
+  <div class="sync-status" id="syncStatus"><span class="dot"></span><span>Live sync</span></div>
+  <div class="integr-status" id="integrStatus" title="To'lov tizimlari integratsiyasi">—</div>
+  <!-- TIBEX_AUDIT_v1: btnQuickPay olib tashlandi (sidebar'da qaQuickPay bor) -->
+  <div class="spacer"></div>
+  <button class="icon-btn" title="Bildirishnomalar">🔔<span class="badge-dot hidden" id="notifDot"></span></button>
+  <button class="icon-btn" id="btnHelp" title="Klaviatura (F1)">?</button>
+  <button class="icon-btn" title="Chiqish">🚪</button>
+</div>
+
+<!-- TABS -->
+<div class="tabs-bar">
+  <button class="tab active" data-view="pending">💰 Kutilayotgan to'lovlar <span class="badge" id="tabPendingBadge">0</span></button>
+  <button class="tab" data-view="paid">✅ To'langan <span class="badge ok" id="tabPaidBadge">0</span></button>
+  <button class="tab" data-view="refunds">↩ Qaytarishlar <span class="badge gold" id="tabRefundBadge">0</span></button>
+  <button class="tab" data-view="debtors">⚠ Qarzdorlar <span class="badge" id="tabDebtorBadge">0</span></button>
+  <div class="divider"></div>
+  <button class="tab" data-view="shift">📋 Smena</button>
+  <button class="tab" data-view="reports">📊 Hisobot</button>
+  <div class="divider"></div>
+  <button class="tab" data-view="audit">📜 Audit</button>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-title">Tezkor amallar</div>
+      <!-- TIBEX_KASSA_v1: qaQuickPay olib tashlandi -->
+      <button class="quick-action gold" id="qaPayNow" data-perm="payments.create"><span class="ico">💰</span> To'lov qabul qilish <span class="kbd">F9</span></button>
+      <button class="quick-action green" id="qaManualPay2" data-perm="payments.create"><span class="ico">➕</span> Qo'lda to'lov <span class="kbd">F4</span></button>
+      <button class="quick-action" id="qaSearch"><span class="ico">🔍</span> Bemor qidirish <span class="kbd">F2</span></button>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Kassa holati</div>
+      <div class="cash-box">
+        <div class="d-flex justify-between items-center mb-8">
+          <span class="cash-status open" id="shiftStatus">🟢 Ochiq</span>
+          <span class="fs-11 text-muted font-mono" id="shiftStart">08:00</span>
+        </div>
+        <div class="row"><span>Boshlang'ich:</span><span class="v" id="openingBalance">500,000</span></div>
+        <div class="row"><span>Naqd tushum:</span><span class="v" id="cashIncome">0</span></div>
+        <div class="row"><span>Karta tushum:</span><span class="v" id="cardIncome">0</span></div>
+        <div class="row"><span>Onlayn:</span><span class="v" id="onlineIncome">0</span></div>
+        <div class="row"><span>Qaytarish:</span><span class="v text-danger" id="refundAmount">0</span></div>
+        <div class="row total"><span>KASSADA:</span><span class="v" id="cashTotal">500,000</span></div>
+      </div>
+      <!-- TIBEX_KASSA_v1: qaCloseShift olib tashlandi (pastdagi actCloseShift) -->
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-title">Bugungi ko'rsatkichlar</div>
+      <div class="stats-grid">
+        <div class="stat-box green"><div class="v" id="sbPaid">0</div><div class="l">To'langan</div></div>
+        <div class="stat-box gold"><div class="v" id="sbRevenue">0</div><div class="l">Jami tushum</div></div>
+        <div class="stat-box red"><div class="v" id="sbDebt">0</div><div class="l">Qarzdorlik</div></div>
+        <div class="stat-box blue"><div class="v" id="sbRefund">0</div><div class="l">Qaytarish</div></div>
+      </div>
+    </div>
+
+    <!-- ═══ ADMIN PANELDAN SINXRON: TO'LOV INTEGRATSIYALARI ═══ -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">
+        <span>To'lov tizimlari</span>
+        <span class="src">· admin</span>
+      </div>
+      <div id="paymentIntegrationsList">
+        <div class="empty-state-sm">Yuklanmoqda...</div>
+      </div>
+    </div>
+
+    <!-- ═══ ADMIN PANELDAN SINXRON: XIZMATLAR ═══ -->
+    <div class="sidebar-section">
+      <div class="sidebar-title">
+        <span>Xizmatlar</span>
+        <span class="src">· admin</span>
+      </div>
+      <div class="fs-11 text-muted lh-18" id="servicesSidebarList">
+        <div class="text-center pad-8 text-dim">Yuklanmoqda...</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <div class="content">
+
+    <!-- PENDING -->
+    <div class="view active" data-view-content="pending">
+      <div class="block">
+        <div class="page-header"><div class="title">💰 Kutilayotgan to'lovlar</div></div>
+        <div class="search-bar">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="pendingSearch" placeholder="Bemor F.I.Sh, telefon yoki qabul raqami...">
+          </div>
+          <button class="btn" id="btnRefreshPending">↻ Yangilash</button>
+        </div>
+        <div class="filters">
+          <button class="filter-chip on" data-filter="all">Barchasi <span class="n" id="fAll">0</span></button>
+          <button class="filter-chip" data-filter="unpaid">To'lanmagan <span class="n" id="fUnpaid">0</span></button>
+          <button class="filter-chip" data-filter="partial">Qismiy <span class="n" id="fPartial">0</span></button>
+          <button class="filter-chip" data-filter="debt">Qarzli <span class="n" id="fDebt">0</span></button>
+          <button class="filter-chip urgent" data-filter="urgent">🚨 Shoshilinch <span class="n" id="fUrgent">0</span></button>
+          <button class="filter-chip badge-warn" data-filter="lab_waiting">🔬 Lab kutish <span class="n" id="fLabWaiting">0</span></button>
+        </div>
+        <div class="block-body">
+          <table class="data-table">
+            <thead><tr>
+              <th class="w-70">Vaqt</th>
+              <th>Bemor</th>
+              <th class="w-180">Xizmat</th>
+              <th class="w-140">Shifokor</th>
+              <th class="w-130 text-right">Summa</th>
+              <th class="w-120">Holat</th>
+              <th class="w-180"></th>
+            </tr></thead>
+            <tbody id="pendingBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAID -->
+    <div class="view" data-view-content="paid">
+      <div class="block">
+        <div class="page-header">
+          <div class="title">✅ Bugun to'langan <span class="count gold" id="paidCount">0</span></div>
+          <div class="actions">
+            <button id="btnExportPaid">📄 Excel</button>
+            <button id="btnPrintReport">🖨 Chop etish</button>
+          </div>
+        </div>
+        <div class="block-body">
+          <table class="data-table">
+            <thead><tr>
+              <th class="w-80">Vaqt</th>
+              <th>Bemor</th>
+              <th class="w-180">Xizmat</th>
+              <th class="w-130">To'lov usuli</th>
+              <th class="w-130 text-right">Summa</th>
+              <th class="w-100"></th>
+            </tr></thead>
+            <tbody id="paidBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- REFUNDS -->
+    <div class="view" data-view-content="refunds">
+      <div class="block">
+        <div class="page-header">
+          <div class="title">↩ Qaytarishlar <span class="count" id="refundCount">0</span></div>
+          <div class="actions">
+            <button class="btn danger" id="btnNewRefund" data-perm="payments.refund">➕ Yangi qaytarish</button>
+          </div>
+        </div>
+        <div class="block-body">
+          <table class="data-table">
+            <thead><tr>
+              <th class="w-80">Vaqt</th>
+              <th>Bemor</th>
+              <th class="w-180">Sabab</th>
+              <th class="w-130 text-right">Summa</th>
+              <th class="w-140">Kim tomonidan</th>
+            </tr></thead>
+            <tbody id="refundsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- DEBTORS -->
+    <div class="view" data-view-content="debtors">
+      <div class="block">
+        <div class="page-header">
+          <div class="title">⚠ Qarzdorlar <span class="count" id="debtorsCount">0</span></div>
+          <div class="actions">
+            <button id="btnPrintDebtors">🖨 Chop etish</button>
+          </div>
+        </div>
+        <div class="block-body">
+          <table class="data-table">
+            <thead><tr>
+              <th>Bemor</th>
+              <th class="w-180">Telefon</th>
+              <th class="w-100">Sana</th>
+              <th class="w-140 text-right">Qarz</th>
+              <th class="w-140"></th>
+            </tr></thead>
+            <tbody id="debtorsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- SHIFT -->
+    <div class="view" data-view-content="shift">
+      <div class="block">
+        <div class="page-header">
+          <div class="title">📋 Smena hisoboti</div>
+          <div class="actions">
+            <button id="btnPrintShift">🖨 Chop etish</button>
+          </div>
+        </div>
+        <div class="report-grid">
+          <div class="report-card"><div class="v gold" id="shiftOpening">500,000</div><div class="l">Boshlang'ich</div></div>
+          <div class="report-card"><div class="v green" id="shiftIncome">0</div><div class="l">Jami tushum</div></div>
+          <div class="report-card"><div class="v red" id="shiftRefund">0</div><div class="l">Qaytarish</div></div>
+          <div class="report-card"><div class="v gold" id="shiftTotal">500,000</div><div class="l">Kassada</div></div>
+        </div>
+        <div class="block-body card-footer">
+          <h4 class="fs-13 fw-700 mb-12">💵 To'lov usullari bo'yicha</h4>
+          <table class="data-table">
+            <thead><tr>
+              <th>To'lov usuli</th>
+              <th class="text-right">Soni</th>
+              <th class="text-right">Summa</th>
+            </tr></thead>
+            <tbody>
+              <tr><td><b>💵 Naqd</b></td><td class="text-right" id="mCash">0</td><td class="amount paid text-right" id="mCashSum">0</td></tr>
+              <tr><td><b>💳 Karta</b></td><td class="text-right" id="mCard">0</td><td class="amount paid text-right" id="mCardSum">0</td></tr>
+              <tr><td><b>📱 Onlayn (Click/Payme)</b></td><td class="text-right" id="mOnline">0</td><td class="amount paid text-right" id="mOnlineSum">0</td></tr>
+              <tr class="bg-amber-100"><td><b>JAMI</b></td><td class="text-right"><b id="mTotal">0</b></td><td class="amount gold text-right"><b id="mTotalSum">0</b></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="view" data-view-content="reports">
+      <div class="block">
+        <div class="page-header">
+          <div class="title">📊 Bugungi hisobot</div>
+          <div class="actions">
+            <button id="btnExportReports">📄 Excel</button>
+          </div>
+        </div>
+        <div class="report-grid">
+          <div class="report-card"><div class="v green" id="rPaid">0</div><div class="l">To'lovlar soni</div></div>
+          <div class="report-card"><div class="v gold" id="rRevenue">0</div><div class="l">Jami tushum</div></div>
+          <div class="report-card"><div class="v red" id="rDebt">0</div><div class="l">Qarzdorlik</div></div>
+          <div class="report-card"><div class="v blue" id="rRefund">0</div><div class="l">Qaytarish</div></div>
+        </div>
+        <div class="block-body card-footer">
+          <h4 class="fs-13 fw-700 mb-12">Shifokorlar bo'yicha tushum</h4>
+          <table class="data-table">
+            <thead><tr>
+              <th>Shifokor</th>
+              <th class="text-right">Qabullar</th>
+              <th class="text-right">Tushum</th>
+            </tr></thead>
+            <tbody id="reportDoctorsBody"></tbody>
+          </table>
+        </div>
+        <div class="block-body card-footer">
+          <h4 class="fs-13 fw-700 mb-12">💳 To'lov usullari bo'yicha</h4>
+          <table class="data-table">
+            <thead><tr>
+              <th>Usul</th>
+              <th class="text-right">Soni</th>
+              <th class="text-right">Summa</th>
+              <th class="text-right">Ulush</th>
+            </tr></thead>
+            <tbody id="reportMethodsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- AUDIT -->
+    <div class="view" data-view-content="audit">
+      <div class="block">
+        <div class="page-header"><div class="title">📜 Audit jurnali</div></div>
+        <div class="search-bar">
+          <div class="search-input-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="auditSearch" placeholder="Foydalanuvchi, amal yoki tafsilot...">
+          </div>
+          <button class="btn" id="btnExportAudit">📄 Excel</button>
+        </div>
+        <div class="filters">
+          <button class="filter-chip on" data-audit="all">Barchasi <span class="n" id="afAll">0</span></button>
+          <button class="filter-chip" data-audit="payment">💰 To'lov <span class="n" id="afPayment">0</span></button>
+          <button class="filter-chip" data-audit="refund">↩ Qaytarish <span class="n" id="afRefund">0</span></button>
+          <button class="filter-chip" data-audit="shift">📋 Smena <span class="n" id="afShift">0</span></button>
+        </div>
+        <div class="block-body mh-600 overflow-y-auto" id="auditBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DETAIL PANEL -->
+  <aside class="detail-panel" id="detailPanel">
+    <div class="detail-empty" id="detailEmpty">
+      <div class="icon">💰</div>
+      <div class="msg">Bemorni tanlang<br><small class="opacity-70">To'lov uchun navbatdan tanlang</small></div>
+    </div>
+    <div class="hidden" id="detailContent"></div>
+  </aside>
+</div>
+
+<!-- ACTIONS -->
+<div class="actions">
+  <div class="group">
+    <button class="btn" id="actPrintReceipt">🖨 Chek</button>
+    <button class="btn" id="actRefresh">↻ Yangilash <kbd>F5</kbd></button>
+  </div>
+  <div class="group">
+    <!-- TIBEX_KASSA_v1: actRefund olib tashlandi (refunds tabda btnNewRefund) -->
+    <button class="btn" id="actManualPay" data-perm="payments.create">➕ Qo'lda to'lov</button>
+  </div>
+  <div class="spacer"></div>
+  <button class="big-action" id="actPayNow" disabled data-perm="payments.create">
+    💰 To'lovni qabul qilish <kbd>F9</kbd>
+  </button>
+  <button class="big-action success" id="actCloseShift" data-perm="payments.close_shift">
+    🔒 Smenani yopish <kbd>F8</kbd>
+  </button>
+</div>
+
+<!-- MODAL: PAYMENT -->
+<div class="modal-backdrop" id="modalPayment">
+  <div class="modal wide">
+    <div class="modal-head">
+      <h3>💰 To'lovni qabul qilish</h3>
+      <button class="close" data-close>✕</button>
+    </div>
+    <div class="modal-body" id="paymentBody"></div>
+    <div class="modal-foot">
+      <div class="left">
+        <span class="fs-12 text-muted">💡 <b>F9</b> — to'lovni tasdiqlash · <b>Esc</b> — bekor</span>
+      </div>
+      <button class="btn" data-close>Bekor qilish</button>
+      <button class="btn primary" id="btnConfirmPayment">✓ To'lovni qabul qilish va chek chiqarish</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: REFUND -->
+<div class="modal-backdrop" id="modalRefund">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>↩ Qaytarish</h3>
+      <button class="close" data-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-field grid-span">
+          <label>Qabul <span class="req">*</span></label>
+          <select class="select" id="rfAppt"></select>
+        </div>
+        <div class="form-field grid-span">
+          <label>Qaytarish sababi <span class="req">*</span></label>
+          <select class="select" id="rfReason">
+            <option>Bemor kelmadi — oldindan to'lov qaytarilmoqda</option>
+            <option>Xizmat ko'rsatilmadi</option>
+            <option>Xato to'lov (ikki marta to'langan)</option>
+            <option>Shifokor bekor qildi</option>
+            <option>Boshqa sabab</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Summa <span class="req">*</span></label>
+          <input class="input mono" id="rfAmount" type="number" placeholder="0">
+        </div>
+        <div class="form-field">
+          <label>To'lov usuli</label>
+          <select class="select" id="rfMethod">
+            <option value="cash">💵 Naqd</option>
+            <option value="card">💳 Karta</option>
+          </select>
+        </div>
+        <div class="form-field grid-span">
+          <label>Izoh</label>
+          <textarea class="textarea" id="rfNote" rows="2" placeholder="Qo'shimcha ma'lumot..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Bekor qilish</button>
+      <button class="btn danger" id="btnConfirmRefund">↩ Qaytarishni tasdiqlash</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: RECEIPT -->
+<div class="modal-backdrop" id="modalReceipt">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>🖨 Chek</h3>
+      <button class="close" data-close>✕</button>
+    </div>
+    <div class="modal-body bg-slate-200">
+      <div class="receipt" id="receiptContent"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Yopish</button>
+      <button class="btn primary" data-action="print">🖨 Chop etish</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: CLOSE SHIFT -->
+<div class="modal-backdrop" id="modalCloseShift">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>🔒 Smenani yopish</h3>
+      <button class="close" data-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="tint-box-gold">
+        <div class="fs-12 text-muted mb-4">Kassada bo'lishi kerak:</div>
+        <div class="mono-total" id="expectedCash">500,000 so'm</div>
+      </div>
+      <div class="form-grid">
+        <div class="form-field grid-span">
+          <label>Haqiqiy sanalgan summa <span class="req">*</span></label>
+          <input class="input mono fs-18 pad-12" id="actualCash" type="number" placeholder="0">
+        </div>
+        <div class="form-field grid-span">
+          <label>Farq</label>
+          <div class="mono-box" id="cashDiff">—</div>
+        </div>
+        <div class="form-field grid-span">
+          <label>Izoh</label>
+          <textarea class="textarea" id="closeNote" rows="2" placeholder="Farq sababi..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn" data-close>Bekor qilish</button>
+      <button class="btn danger" id="btnConfirmCloseShift">🔒 Smenani yopish</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: KBD -->
+<div class="modal-backdrop" id="kbdModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>⌨️ Klaviatura yorlig'i</h3>
+      <button class="close" data-close>✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="kbd-grid">
+        <div class="kbd-group">
+          <h4>Tezkor amallar</h4>
+          <div class="kbd-row"><kbd>F1</kbd><span>Klaviatura yorlig'i</span></div>
+          <div class="kbd-row"><kbd>F2</kbd><span>Bemor qidirish</span></div>
+          <div class="kbd-row"><kbd>F4</kbd><span>Qo'lda to'lov</span></div>
+          <div class="kbd-row"><kbd>F5</kbd><span>Yangilash</span></div>
+          <div class="kbd-row"><kbd>F8</kbd><span>Smenani yopish</span></div>
+          <div class="kbd-row"><kbd>F9</kbd><span>To'lov qabul qilish</span></div>
+        </div>
+        <div class="kbd-group">
+          <h4>Navigatsiya</h4>
+          <div class="kbd-row"><kbd>↑</kbd><kbd>↓</kbd><span>Jadvalda harakat</span></div>
+          <div class="kbd-row"><kbd>Enter</kbd><span>Tanlash / Tasdiqlash</span></div>
+          <div class="kbd-row"><kbd>Esc</kbd><span>Modalni yopish</span></div>
+          <div class="kbd-row"><kbd>Ctrl</kbd><kbd>1..6</kbd><span>Tab'larga o'tish</span></div>
+          <div class="kbd-row"><kbd>Ctrl</kbd><kbd>P</kbd><span>Chek chiqarish</span></div>
+          <div class="kbd-row"><kbd>Ctrl</kbd><kbd>R</kbd><span>Qaytarish</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+
+<script src="static/tibex-pwd-toggle.js"></script>
+<script src="static/tibex-sync-guard.js"></script>
+  <script src="static/tibex-role-refresh.js"></script>
+  <script src="static/js/cashier.00e083f4.js"></script>
+</body>
+</html>

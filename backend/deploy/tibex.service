@@ -1,0 +1,40 @@
+# /etc/systemd/system/tibex.service
+[Unit]
+Description=TIBEX Backend (FastAPI)
+After=network.target postgresql.service redis-server.service
+Wants=postgresql.service redis-server.service
+
+[Service]
+Type=simple
+User=tibex
+Group=tibex
+WorkingDirectory=/opt/tibex/backend
+EnvironmentFile=/opt/tibex/backend/.env.public
+Environment=TIBEX_ENV=production
+Environment=TIBEX_SECRET_KEY_FILE=/opt/tibex/backend/secrets/secret_key.txt
+Environment=TIBEX_MASTER_KEY_B64_FILE=/opt/tibex/backend/secrets/master_key_b64.txt
+Environment=TIBEX_MASTER_KEYS_FILE=/opt/tibex/backend/secrets/master_keys.json
+Environment=TIBEX_BLIND_INDEX_KEY_B64_FILE=/opt/tibex/backend/secrets/blind_index_key_b64.txt
+Environment=TIBEX_PASSWORD_PEPPER_FILE=/opt/tibex/backend/secrets/password_pepper.txt
+Environment=TIBEX_DATABASE_URL_FILE=/opt/tibex/backend/secrets/database_url.txt
+Environment=TIBEX_REDIS_URL_FILE=/opt/tibex/backend/secrets/redis_url.txt
+Environment=TIBEX_TELEGRAM_BOT_TOKEN_FILE=/opt/tibex/backend/secrets/telegram_bot_token.txt
+Environment=TIBEX_TELEGRAM_WEBHOOK_SECRET_FILE=/opt/tibex/backend/secrets/telegram_webhook_secret.txt
+ExecStart=/opt/tibex/backend/.venv/bin/gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w 1 -b 127.0.0.1:8000 --forwarded-allow-ips=127.0.0.1 --timeout 60 --graceful-timeout 30
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+LimitNOFILE=65536
+MemoryMax=2G
+ReadWritePaths=/opt/tibex/backend/backups
+
+[Install]
+WantedBy=multi-user.target

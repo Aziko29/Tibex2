@@ -1,0 +1,160 @@
+/* TIBEX console design system: shared polish for every role. */
+:root {
+  --ui-bg: #f4f7fb;
+  --ui-surface: #fff;
+  --ui-surface-soft: #f8fafc;
+  --ui-border: #e4eaf2;
+  --ui-text: #172235;
+  --ui-muted: #64748b;
+  --ui-shadow: 0 8px 24px rgba(21, 37, 64, .055);
+  color-scheme: light;
+}
+html[data-tibex-theme="dark"], html[data-theme="dark"] {
+  --ui-bg: #0c1220;
+  --ui-surface: #151e2d;
+  --ui-surface-soft: #1a2637;
+  --ui-border: #29384b;
+  --ui-text: #e7edf5;
+  --ui-muted: #9aaac0;
+  --ui-shadow: 0 8px 24px rgba(0, 0, 0, .2);
+  color-scheme: dark;
+}
+html, body { min-width: 320px; }
+body { color: var(--ui-text); background: var(--ui-bg); }
+.topbar { position: relative; z-index: 30; min-height: 54px; box-shadow: 0 2px 12px rgba(10, 25, 48, .12); }
+.topbar .logo { letter-spacing: -.2px; }
+.topbar .icon-btn { width: 38px; height: 38px; min-width: 38px; border-radius: 11px; }
+.tabs-bar { gap: 5px; scrollbar-width: thin; }
+.tabs-bar .tab { min-height: 40px; border-radius: 10px 10px 0 0; transition: background .18s, color .18s; }
+.tabs-bar .tab:hover { background: color-mix(in srgb, var(--primary, #2563eb) 9%, transparent); }
+.main { min-height: 0; }
+.sidebar { background: var(--ui-surface); }
+.content { min-width: 0; background: var(--ui-bg); }
+.block, .detail-panel, .overview-card, .stat-box { border-radius: 14px; box-shadow: var(--ui-shadow); }
+.block { border: 1px solid var(--ui-border); }
+.page-header { gap: 12px; }
+.page-header .title { color: var(--ui-text); }
+.data-table th { position: sticky; top: 0; z-index: 1; }
+.data-table tbody tr { transition: background .15s; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 3px solid color-mix(in srgb, var(--primary, #2563eb) 55%, white); outline-offset: 2px; }
+.tibex-theme-toggle { display: inline-flex; align-items: center; justify-content: center; }
+html[data-tibex-theme="dark"] body,
+html[data-theme="dark"] body { background: var(--ui-bg); color: var(--ui-text); }
+html[data-tibex-theme="dark"] .content,
+html[data-theme="dark"] .content { background: var(--ui-bg); }
+html[data-tibex-theme="dark"] .block,
+html[data-tibex-theme="dark"] .overview-card,
+html[data-theme="dark"] .block,
+html[data-theme="dark"] .overview-card { background: var(--ui-surface); border-color: var(--ui-border); color: var(--ui-text); }
+html[data-tibex-theme="dark"] .data-table th,
+html[data-theme="dark"] .data-table th { background: var(--ui-surface-soft); color: var(--ui-muted); }
+html[data-tibex-theme="dark"] .input,
+html[data-tibex-theme="dark"] .textarea,
+html[data-tibex-theme="dark"] .select,
+html[data-theme="dark"] .input,
+html[data-theme="dark"] .textarea,
+html[data-theme="dark"] .select { background: var(--ui-surface-soft); border-color: var(--ui-border); color: var(--ui-text); }
+@media (max-width: 900px) {
+  .app { height: auto; min-height: 100dvh; grid-template-rows: auto auto minmax(0, 1fr) auto; overflow: visible; }
+  html, body { height: auto; min-height: 100%; }
+  body { overflow: auto; }
+  .main { overflow: visible; }
+  .tabs-bar { position: sticky; top: 0; z-index: 20; padding-inline: 10px; }
+  .content { overflow: visible; padding: clamp(10px, 2vw, 20px); }
+  .sidebar { max-height: min(42vh, 340px); }
+  .sidebar.tibex-collapsed { display: none; }
+}
+@media (max-width: 600px) {
+  .topbar { padding-inline: 10px; gap: 5px; }
+  .topbar .logo { max-width: 42vw; font-size: 13px; }
+  .topbar .stat-chip { padding-inline: 8px; font-size: 11px; }
+  .tabs-bar { height: 48px; }
+  .tabs-bar .tab { padding: 7px 11px; font-size: 12px; }
+  .overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+  .form-grid, .form-grid.three { grid-template-columns: minmax(0, 1fr); }
+  .grid-span { grid-column: auto; }
+  .page-header { align-items: flex-start; }
+  .page-header .actions { flex-wrap: wrap; }
+  .block-body { overflow-x: auto; }
+  .data-table { min-width: 580px; }
+  .tibex-sidebar-toggle { display: none !important; }
+}
+@media (max-width: 900px) {
+  .tabbar { overflow-x: auto; overscroll-behavior-x: contain; }
+  .tabbar .tab-group { flex: 0 0 auto; }
+  .tabbar .tab { white-space: nowrap; }
+}
+
+/* Patient portal: remove the second copy of the dashboard KPIs and make
+   its existing navigation and tables work naturally on a phone. */
+body.patient-portal .sidebar .sidebar-section:first-child { display: none; }
+body.patient-portal .sidebar { width: 235px; padding: 20px 16px; }
+body.patient-portal .sidebar .sidebar-section { padding: 10px 0; }
+body.patient-portal .overview-card { background: var(--ui-surface); }
+html[data-tibex-theme="dark"] body.patient-portal .overview-card,
+html[data-tibex-theme="dark"] body.patient-portal .modal,
+html[data-theme="dark"] body.patient-portal .overview-card,
+html[data-theme="dark"] body.patient-portal .modal { background: var(--ui-surface); color: var(--ui-text); border-color: var(--ui-border); }
+@media (max-width: 880px) {
+  body.patient-portal { padding-bottom: env(safe-area-inset-bottom); }
+  body.patient-portal .sidebar { display: none; }
+  body.patient-portal .tabs-bar {
+    position: fixed; inset: auto 0 0; height: auto; min-height: 62px;
+    padding: 5px max(6px, env(safe-area-inset-right)) calc(5px + env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
+    background: var(--ui-surface); border-top: 1px solid var(--ui-border); border-bottom: 0;
+    display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2px; overflow: visible;
+    box-shadow: 0 -8px 24px rgba(16, 33, 58, .09);
+  }
+  body.patient-portal .tabs-bar .tab {
+    min-width: 0; min-height: 50px; padding: 5px 2px; border-radius: 10px;
+    display: flex; flex-direction: column; justify-content: center; gap: 2px;
+    white-space: normal; text-align: center; font-size: 10px; line-height: 1.15;
+  }
+  body.patient-portal .tabs-bar .tab .badge { font-size: 9px; padding: 0 4px; min-width: 15px; }
+  body.patient-portal .content { padding: 12px 12px calc(82px + env(safe-area-inset-bottom)); }
+  body.patient-portal .topbar { position: sticky; top: 0; }
+  body.patient-portal .topbar .stat-chip { display: none; }
+  body.patient-portal .overview-grid { padding: 8px 10px 14px; }
+  body.patient-portal .block { margin-bottom: 12px; }
+  body.patient-portal .block-body { overflow: visible; }
+  body.patient-portal .data-table { min-width: 0; display: block; }
+  body.patient-portal .data-table thead { display: none; }
+  body.patient-portal .data-table tbody { display: grid; gap: 9px; padding: 10px; }
+  body.patient-portal .data-table tbody tr {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 12px;
+    padding: 7px 10px; background: var(--ui-surface); border: 1px solid var(--ui-border); border-radius: 12px;
+  }
+  body.patient-portal .data-table td { min-width: 0; padding: 7px 0; border-bottom: 1px solid var(--ui-border); overflow-wrap: anywhere; }
+  body.patient-portal .data-table td:last-child { border-bottom: 0; }
+  body.patient-portal [data-view-content="appointments"] .data-table td:nth-child(3),
+  body.patient-portal [data-view-content="appointments"] .data-table td:nth-child(4),
+  body.patient-portal [data-view-content="appointments"] .data-table td:nth-child(6) { grid-column: 1 / -1; }
+  body.patient-portal .data-table td::before { display: block; margin-bottom: 2px; color: var(--ui-muted); font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .045em; }
+  body.patient-portal [data-view-content="summary"] .data-table td:nth-child(1)::before,
+  body.patient-portal [data-view-content="appointments"] .data-table td:nth-child(1)::before { content: "Sana"; }
+  body.patient-portal [data-view-content="appointments"] .data-table td:nth-child(2)::before { content: "Vaqt"; }
+  body.patient-portal [data-view-content="summary"] .data-table td:nth-child(2)::before,
+  body.patient-portal [data-view-content="appointments"] .data-table td:nth-child(3)::before { content: "Shifokor"; }
+  body.patient-portal [data-view-content="summary"] .data-table td:nth-child(3)::before,
+  body.patient-portal [data-view-content="appointments"] .data-table td:nth-child(4)::before { content: "Xizmat"; }
+  body.patient-portal [data-view-content="summary"] .data-table td:nth-child(4)::before,
+  body.patient-portal [data-view-content="appointments"] .data-table td:nth-child(5)::before { content: "Holat"; }
+  body.patient-portal [data-view-content="appointments"] .data-table td:nth-child(6)::before { content: "Tashxis"; }
+  body.patient-portal [data-view-content="appointments"] .data-table td:nth-child(7)::before { content: "To‘langan"; }
+  body.patient-portal [data-view-content="appointments"] .data-table td:nth-child(8)::before { content: "Qarz"; }
+  body.patient-portal [data-view-content="labs"] .data-table td:nth-child(1)::before { content: "Tahlil"; }
+  body.patient-portal [data-view-content="labs"] .data-table td:nth-child(2)::before { content: "Holat"; }
+  body.patient-portal [data-view-content="labs"] .data-table td:nth-child(3)::before { content: "Natija"; }
+  body.patient-portal [data-view-content="labs"] .data-table td:nth-child(4)::before { content: "Tasdiqlangan"; }
+  body.patient-portal [data-view-content="payments"] .data-table td:nth-child(1)::before { content: "Sana"; }
+  body.patient-portal [data-view-content="payments"] .data-table td:nth-child(2)::before { content: "Summa"; }
+  body.patient-portal [data-view-content="payments"] .data-table td:nth-child(3)::before { content: "Usul"; }
+  body.patient-portal [data-view-content="payments"] .data-table td:nth-child(4)::before { content: "Holat"; }
+}
+@media (max-width: 380px) {
+  body.patient-portal .topbar .logo { max-width: 52vw; }
+  body.patient-portal .overview-card { padding: 11px; }
+  body.patient-portal .overview-card .v { font-size: 19px; }
+  body.patient-portal .tabs-bar .tab { font-size: 9px; }
+}
