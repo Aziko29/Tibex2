@@ -220,12 +220,28 @@ window.TIBEX_STORE = (function () {
     "audit", "system_info", "shift"
   ];
 
+  // FNV-1a (32-bit) over the FULL serialized string (never truncated: a change past
+  // any prefix must still be detected). Compared together with the string length.
+  function _fnv1a(str) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return h >>> 0;
+  }
+
+  function _entitySig(value) {
+    const str = JSON.stringify(value ?? null);
+    return str.length + ":" + _fnv1a(str);
+  }
+
   function _changedSnapshotEntities(previous, next) {
     if (!previous) return SNAPSHOT_ENTITIES.slice();
     return SNAPSHOT_ENTITIES.filter((key) => {
-      // Bootstrap JSON has stable property ordering; comparing the payload for
+      // Bootstrap JSON has stable property ordering; comparing a cheap signature of
       // each entity avoids rendering consoles for unrelated/no-op invalidations.
-      return JSON.stringify(previous[key] ?? null) !== JSON.stringify(next[key] ?? null);
+      return _entitySig(previous[key]) !== _entitySig(next[key]);
     });
   }
 

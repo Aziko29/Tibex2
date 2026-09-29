@@ -4,7 +4,7 @@
   "private": true,
   "description": "Dev-only test dependencies for the static TIBEX frontend (no build step).",
   "scripts": {
-    "test": "node --test tests/xss.spec.js"
+    "test": "node --test tests/xss.spec.js tests/snapshot-hash.spec.js"
   },
   "devDependencies": {
     "jsdom": "24.1.3"

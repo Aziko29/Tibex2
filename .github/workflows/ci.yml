@@ -56,6 +56,6 @@ jobs:
         run: |
           # Commit frontend/package-lock.json (`npm install --package-lock-only`), then switch to `npm ci`.
           if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
-          node --test tests/xss.spec.js
+          node --test tests/xss.spec.js tests/snapshot-hash.spec.js
       - run: npm i --no-save eslint@8 eslint-plugin-no-unsanitized
       - run: npx eslint -c frontend/.eslintrc.json "frontend/static/**/*.js" "frontend/*.js" --ignore-pattern "**/vendor/**"
