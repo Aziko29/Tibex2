@@ -1,5 +1,6 @@
 """WebSocket endpoint — Origin tekshiruvi bilan (CSWSH himoyasi)."""
 import asyncio
+import contextlib
 import logging
 import time
 from datetime import datetime, timezone
@@ -15,7 +16,7 @@ from ..security.netutil import client_ip
 from ..security.sessions import parse_token
 from ..security.audit import log_action
 from ..security.session_cookie import COOKIE_NAME
-from ..security.session_state import INACTIVE, REVOKED, session_row_problem, user_problem
+from ..security.session_state import INACTIVE, session_row_problem, user_problem
 
 log = logging.getLogger("tibex.ws")
 router = APIRouter()
@@ -134,12 +135,22 @@ async def ws_endpoint(
         await manager.disconnect(ws)
 
 
+@contextlib.asynccontextmanager
+async def _ws_session_scope():
+    """Bitta DB sessiyasi: chiqishda commit/rollback va yopish kafolatlanadi.
+
+    `get_db` har chaqiruvda modul darajasidan olinadi (testlar uni almashtiradi).
+    """
+    async with contextlib.asynccontextmanager(get_db)() as db:
+        yield db
+
+
 async def _ws_session_problem(info: dict) -> str | None:
     """Sessiya yaroqsiz bo'lsa sabab kodini, yaroqli bo'lsa None qaytaradi.
 
     Qoidalar HTTP tomon bilan bir xil: `security/session_state.py`.
     """
-    async for db in get_db():
+    async with _ws_session_scope() as db:
         row = (
             await db.execute(select(DBSession).where(DBSession.jti == info["jti"]))
         ).scalar_one_or_none()
@@ -159,7 +170,6 @@ async def _ws_session_problem(info: dict) -> str | None:
         row.last_seen_at = now
         await db.commit()
         return None
-    return REVOKED
 
 
 async def _validate_ws_session(info: dict) -> bool:
@@ -172,12 +182,11 @@ async def _audit_ws_reject(info: dict, reason: str, ip: str | None) -> None:
     Imzosiz/noto'g'ri tokenlar yozilmaydi (audit jadvalini to'ldirib yubormaslik uchun).
     """
     try:
-        async for db in get_db():
+        async with _ws_session_scope() as db:
             await log_action(
                 db, user=f"user#{info.get('user_id')}", role="?", action="ws_reject",
                 detail=f"WS ulanishi rad etildi: {reason}", ip=ip,
             )
             await db.commit()
-            break
     except Exception as exc:  # audit xatosi WS'ni yiqitmasin
         log.warning("WS reject audit yozilmadi: %s", exc)
