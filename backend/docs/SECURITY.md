@@ -8,7 +8,15 @@ AES-GCM (context-bound, kalit halqasi). Shifrlangan: `patients.{phone, address, 
 Migratsiya ikki bosqichli: `phi20260929_1000` yangi `*_enc` ustunlarni to'ldiradi, **eski ochiq ustunlar saqlanadi (nullable)**. Barqaror ishlashi tasdiqlangach keyingi releasda ularni o'chiring (alohida migratsiya) va zaxiralarni ham yangilang — aks holda eski ochiq matn zaxiralarda qoladi.
 
 ### QAROR: `Patient.fullname`
-Hozircha **(A) ochiq qoldirilgan** (qidiruv `ilike` ishlashi uchun): himoya = disk/Postgres darajasida shifrlash + RBAC + audit. (B) blind-index (token/prefiks) — foydalanuvchi qaroriga qadar amalga oshirilmagan.
+STATUS: AWAITING DECISION (owner: <name>, opened: 2026-09-29)
+
+Joriy holat: **(A) ochiq saqlanmoqda** (qidiruv `ilike` ishlashi uchun). Himoya: disk/Postgres darajasida shifrlash + RBAC + audit. Qaror qabul qilinmaguncha maydon, migratsiya va kalit rotatsiyasi o'zgartirilmaydi.
+
+Variantlar:
+- **(A) Ochiq qoldirish.** Disk darajasida shifrlash (LUKS yoki pgcrypto) qo'shiladi, kelishuv shu hujjatda yoziladi. `ilike` qidiruv o'zgarmaydi, tez. Kamchilik: DB dump va zaxiralarda ism ochiq matnda bo'ladi.
+- **(B) Shifrlash.** `fullname_enc` + `fullname_bidx` (ism tokenlari HMAC-SHA256, normallashtirilgan). Qidiruv token-prefiks `IN` ga o'tadi. Yozish taxminan +1 ms, qidiruv 2-3 baravar sekinroq. DB dump'larda ochiq ism bo'lmaydi.
+
+Qaror egasi yuqoridagi `owner` maydonini to'ldiradi va variantni (A yoki B) shu bo'limga yozadi; shundan keyingina kod o'zgartiriladi.
 
 ## Audit siyosati
 Append-only (DB trigger + `REVOKE`), hash-zanjir (`/api/audit/verify`, `scripts/verify_audit.py`). PHI o'qish `view` sifatida yoziladi (faqat ID/son). Saqlash: `audit_logs` kamida 2 yil, eksport arxivi 5 yil (`scripts/audit_archive.py`). Ilova DB foydalanuvchisi jadval egasi bo'lmasligi tavsiya etiladi (trigger'ni egasi o'chira oladi).
