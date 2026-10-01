@@ -1,4 +1,4 @@
-# ─── Python ───
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -6,54 +6,29 @@ __pycache__/
 .Python
 .venv/
 venv/
-env/
 ENV/
-build/
-dist/
-*.egg-info/
-.eggs/
-pip-wheel-metadata/
+env/
 
-# ─── Env ───
+# Virtualenv (desktop)
+tibex-desktop/.venv/
+
+# Reports & snapshots
+reports/
+_snapshot/
+Output/
+
+# Environment
 .env
-.env.local
-.env.*.local
-.env.public
+.env.*
+!.env.example
 
-# ─── Fayl-asosidagi sirlar (Docker secrets) ───
-secrets/
-*.secret
-
-# ─── IDE ───
+# IDE & OS
 .vscode/
 .idea/
-*.swp
-*.swo
-
-# ─── OS ───
 .DS_Store
 Thumbs.db
 desktop.ini
 
-# ─── Test / Coverage ───
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-.mypy_cache/
-.ruff_cache/
-
-# ─── Logs ───
+# Logs
 *.log
-logs/
-
-# ─── Backup ───
-backups/
-*.dump
-*.sql.gz
-
-# ─── Alembic ───
-alembic/versions/*.pyc
-# Xavfsizlik
-cookies.txt
-*.cookies
+audit.log
