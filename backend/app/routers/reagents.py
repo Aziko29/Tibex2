@@ -10,6 +10,7 @@ from ..deps import (
     require_csrf,
     require_permission,
 )
+from ..inventory_validation import validate_reagent
 from ..models import Reagent, Role, User
 from ..realtime import publish
 from ..security.audit import log_action
@@ -73,7 +74,7 @@ async def create_reagent(
     user: User = Depends(get_current_user),
     _perm: Role = Depends(require_permission("reagents", "create")),
 ):
-    r = Reagent(**body.model_dump())
+    r = Reagent(**validate_reagent(body.model_dump()))
     db.add(r)
     await db.flush()
     await db.refresh(r)
@@ -102,7 +103,8 @@ async def update_reagent(
     if r is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Reagent topilmadi")
     before = _to_dict(r)
-    for k, v in body.model_dump(exclude_unset=True).items():
+    data = validate_reagent(body.model_dump(exclude_unset=True), partial=True)
+    for k, v in data.items():
         setattr(r, k, v)
     await db.flush()
     after = _to_dict(r)

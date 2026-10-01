@@ -82,14 +82,17 @@ ss -tlnp | grep 5432    # faqat 127.0.0.1:5432 ko'rinishi shart
 
 ## QADAM 5a — Docker tarmog'i va haqiqiy klient IP
 
-`docker-compose.yml`dagi `backend` servisi `network_mode: host` bilan ishlaydi,
-`ports:`/`extra_hosts:` yo'q. Shuning uchun:
+`docker-compose.yml`dagi `backend` servisi endi `ports:` + `extra_hosts:` bilan ishlaydi
+(Windows Docker Desktop `network_mode: host` ni qo'llab-quvvatlamaydi). Shuning uchun:
 
-- Postgres `listen_addresses='localhost'` bo'lsa ham backend `127.0.0.1:5432` orqali ulanadi
-  (`secrets/database_url.txt` da host `127.0.0.1` bo'lishi shart, `host.docker.internal` emas).
-- Redis `127.0.0.1:6379` da ochilgan (`secrets/redis_url.txt` shu manzilga).
-- gunicorn `127.0.0.1:8000` da tinglaydi; nginx → backend ulanishi `127.0.0.1` dan keladi va
-  `TIBEX_TRUSTED_PROXY_IPS=["127.0.0.1","::1"]` to'g'ri ishlaydi.
+- `secrets/database_url.txt` da host `host.docker.internal` (host'dagi Postgres). Postgres
+  `listen_addresses` da Docker gateway'ni tinglashi va `pg_hba.conf` da `172.16.0.0/12` (Docker Desktop'da
+  `192.168.0.0/16` ham) uchun `scram-sha-256` qatori bo'lishi kerak. `gen_secrets.py prod` yangi parolni
+  faqat bir marta chop etadi; uni Postgres'ga `ALTER USER tibex PASSWORD '...'` bilan o'rnating.
+- `secrets/redis_url.txt` da host `redis` (compose servis nomi).
+- gunicorn konteyner ichida `0.0.0.0:8000` da tinglaydi, host'ga port faqat `127.0.0.1:8000` ga ochiladi.
+  nginx ulanishi Docker gateway IP'sidan keladi, shuning uchun `TIBEX_TRUSTED_PROXY_IPS` ga
+  `172.16.0.0/12` va `192.168.0.0/16` qo'shilgan (`.env.public`).
 - nginx `X-Forwarded-For $remote_addr` bilan sarlavhani **almashtiradi** (qo'shmaydi), backend esa
   faqat bitta valid IP'ni qabul qiladi.
 
@@ -183,6 +186,7 @@ curl -i -X POST http://127.0.0.1:8000/api/auth/login \
 
 ```bash
 sudo apt install -y nginx certbot python3-certbot-nginx
+node /path/to/BIT/frontend/tools/hash_assets.js --check   # xato bersa: `node .../hash_assets.js`, commit, qayta deploy
 sudo mkdir -p /var/www/tibex
 sudo rsync -a --exclude='*.deb' --exclude='*.md' --exclude='docs/' --exclude='README*' \
   /path/to/BIT/frontend/ /var/www/tibex/frontend/

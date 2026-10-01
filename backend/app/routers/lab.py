@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_db
@@ -164,19 +165,41 @@ async def create_lab_order(
     user: User = Depends(get_current_user),
     _perm: Role = Depends(require_permission("lab", "create")),
 ):
-    new_id = await _next_lab_id(db)
-    o = LabOrder(
-        id=new_id,
-        appointment_id=body.appointment_id,
-        patient_id=body.patient_id,
-        test_key=body.test_key,
-        test_name=body.test_name,
-        priority=body.priority,
-        status=body.status or "new",
-        ordered_by=body.ordered_by or user.fullname,
-    )
-    db.add(o)
-    await db.flush()
+    # TIBEX_LAB_STATUS_FIX_v1: yangi lab so'rov FAQAT "new" statusida yaratiladi.
+    # Sabab: state-machine `new -> received -> processing -> ready -> verified`.
+    # Agar klient `status="verified"` yuborsa, tasdiqlash bosqichi butunlay chetlab
+    # o'tilardi (lab.verify ruxsatisiz). Server tomonda majburlaymiz.
+    # TIBEX_LAB_ID_RACE_FIX_v1: `_next_lab_id()` read-modify-write — parallel
+    # so'rovlar bir xil ID generatsiya qilishi mumkin. 5 marta retry qilamiz.
+    o = None
+    for _attempt in range(5):
+        new_id = await _next_lab_id(db)
+        candidate = LabOrder(
+            id=new_id,
+            appointment_id=body.appointment_id,
+            patient_id=body.patient_id,
+            test_key=body.test_key,
+            test_name=body.test_name,
+            priority=body.priority,
+            status="new",
+            ordered_by=body.ordered_by or user.fullname,
+        )
+        try:
+            db.add(candidate)
+            await db.flush()
+            o = candidate
+            break
+        except IntegrityError:
+            try:
+                await db.rollback()
+            except Exception:
+                pass
+            continue
+    if o is None:
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR,
+            "Lab so'rov ID generatsiyasida to'qnashuv. Qayta urinib ko'ring.",
+        )
     await db.refresh(o)
 
     after = _to_dict(o)

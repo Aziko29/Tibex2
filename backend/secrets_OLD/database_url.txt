@@ -1,0 +1,1 @@
+postgresql+asyncpg://tibex:Aziko6002@host.docker.internal:5432/tibex

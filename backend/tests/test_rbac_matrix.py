@@ -82,7 +82,8 @@ ENDPOINTS: dict[tuple[str, str], set[str]] = {
     ("PATCH", "/api/settings"):           {"admin", "superadmin"},
     ("GET",   "/api/equipment"):          {"admin", "superadmin", "lab", "doctor"},
     ("GET",   "/api/reagents"):           {"admin", "superadmin", "lab", "doctor"},
-    ("GET",   "/api/integrations"):       {"admin", "superadmin"},
+    # lab/cashier ham ko'radi, lekin faqat o'z turini (device / payment) — integration_access.py
+    ("GET",   "/api/integrations"):       {"admin", "superadmin", "lab", "cashier"},
     ("GET",   "/api/monitoring/health"):  {"admin", "superadmin"},
 }
 ROLES = ("admin", "superadmin", "doctor", "reception", "cashier", "lab", "patient")

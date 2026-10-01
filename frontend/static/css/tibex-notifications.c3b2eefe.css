@@ -1,0 +1,79 @@
+/* tibex-notifications.js dan ko'chirildi (B bosqich): CSP `style-src 'self'` JS da yaratilgan <style> ni bloklaydi.
+   Tegishli HTML sahifalarida <link rel="stylesheet"> bilan ulanadi; qoidalar tartibi avvalgi injektsiya
+   tartibini saqlaydi. `node frontend/tools/hash_assets.js` nomni hash'laydi. */
+
+.tibex-notif-wrap { position: relative; }
+.tibex-notif-bell { position: relative; }
+.tibex-notif-bell .badge {
+  position: absolute; top: 2px; right: 2px;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  background: #dc2626; color: #fff;
+  border-radius: 8px; font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid var(--dark, #0c1729);
+  font-family: ui-monospace, monospace;
+  line-height: 1;
+}
+.tibex-notif-bell .badge.hidden { display: none; }
+.tibex-notif-drop {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  width: 380px; max-width: calc(100vw - 20px);
+  background: #fff; border: 1px solid #dde3e8; border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.18);
+  z-index: 1000; overflow: hidden;
+  animation: tibexNotifIn .15s ease-out;
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@keyframes tibexNotifIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+html[data-tibex-theme="dark"] .tibex-notif-drop { background: #1e293b; border-color: #334155; }
+.tibex-notif-drop.hidden { display: none; }
+.tibex-notif-head {
+  padding: 12px 16px; border-bottom: 1px solid #f1f5f9;
+  display: flex; justify-content: space-between; align-items: center;
+}
+html[data-tibex-theme="dark"] .tibex-notif-head { border-color: #334155; }
+.tibex-notif-head h4 { font-size: 13px; font-weight: 700; margin: 0; color: #1a2332; display: flex; align-items: center; gap: 6px; }
+html[data-tibex-theme="dark"] .tibex-notif-head h4 { color: #e2e8f0; }
+.tibex-notif-head button { background: transparent; border: none; font-size: 11px; color: #1e40af; cursor: pointer; font-weight: 600; padding: 2px 6px; border-radius: 4px; }
+.tibex-notif-head button:hover { background: #dbeafe; }
+.tibex-notif-list { max-height: 380px; overflow-y: auto; }
+.tibex-notif-item {
+  display: flex; gap: 10px; padding: 10px 16px;
+  border-bottom: 1px solid #f8fafc; cursor: pointer;
+  transition: background .1s;
+}
+html[data-tibex-theme="dark"] .tibex-notif-item { border-color: #334155; }
+.tibex-notif-item:hover { background: #f8fafc; }
+html[data-tibex-theme="dark"] .tibex-notif-item:hover { background: #0f172a; }
+.tibex-notif-item .ico {
+  width: 32px; height: 32px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; flex-shrink: 0;
+}
+.tibex-notif-item .body { flex: 1; min-width: 0; }
+.tibex-notif-item .body .t {
+  font-size: 12.5px; font-weight: 600; color: #1a2332;
+  line-height: 1.4; word-break: break-word;
+}
+html[data-tibex-theme="dark"] .tibex-notif-item .body .t { color: #e2e8f0; }
+.tibex-notif-item .body .meta {
+  font-size: 11px; color: #94a3b8; margin-top: 3px;
+  display: flex; gap: 8px;
+}
+.tibex-notif-item.unread { background: #f0f7ff; }
+html[data-tibex-theme="dark"] .tibex-notif-item.unread { background: #1e3a8a33; }
+.tibex-notif-empty {
+  padding: 40px 20px; text-align: center; color: #94a3b8; font-size: 12.5px;
+}
+.tibex-notif-empty .big { font-size: 40px; opacity: .4; margin-bottom: 8px; }
+.tibex-notif-foot {
+  padding: 10px 16px; border-top: 1px solid #f1f5f9;
+  text-align: center; background: #f8fafc;
+}
+html[data-tibex-theme="dark"] .tibex-notif-foot { background: #0f172a; border-color: #334155; }
+.tibex-notif-foot button {
+  background: transparent; border: none; color: #1e40af;
+  font-family: inherit; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; padding: 4px 10px; border-radius: 6px;
+}
+.tibex-notif-foot button:hover { background: #dbeafe; }

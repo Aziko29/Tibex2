@@ -1,0 +1,5 @@
+O'chiriladigan eski fayllar (oldingi arxivdagi nomlar):
+frontend/static/js/admin.c3ac8013.js
+frontend/static/css/admin.ee081d4b.css
+frontend/static/js/admin.9025ae47.js
+frontend/static/css/admin.a9037fa7.css

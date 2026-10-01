@@ -198,6 +198,15 @@ async def get_current_patient_user(
     return user
 
 
+async def require_patient(
+    user: User = Depends(get_current_patient_user),
+) -> User:
+    """Faqat kabinetga kirgan bemor (portal routerlari uchun umumiy dependency)."""
+    if user.role_key != "patient" or user.patient_id is None:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Faqat bemorlar uchun")
+    return user
+
+
 async def require_patient_csrf(
     request: Request,
     sess: dict = Depends(get_patient_session),

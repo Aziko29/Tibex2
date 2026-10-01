@@ -48,9 +48,11 @@ window.TIBEX_STORE = (function () {
   let _currentUser = null;         // joriy foydalanuvchi
   let _ws = null;                  // WebSocket
   let _wsRetries = 0;
-  // Snapshot yangilanishlari eventlar oqimi zich bo'lsa ham 3 soniyada
-  // ko'pi bilan bitta so'rovga birlashtiriladi.
-  const SNAPSHOT_REFRESH_MIN_MS = 3000;
+  // TIBEX_LIVE_DIFF_v1: 3 s → 10 s. Backend endi `view` ni WS'ga
+  // chiqarmaydi (audit.py), shu sabab bu deyarli faqat HAQIQIY mutation
+  // (create/update/delete/payment) paytida ishga tushadi. 10 s — admin
+  // ochiq turganda serverga ortiqcha yuk tushmasligi uchun xavfsiz chegara.
+  const SNAPSHOT_REFRESH_MIN_MS = 1200; // real-time: o'zgarish ~1 soniyada ko'rinadi (faqat farqli qismlar chiziladi)
   let _snapshotRefreshTimer = null;
   let _snapshotRefreshInFlight = false;
   let _snapshotRefreshPending = false;
@@ -154,12 +156,31 @@ window.TIBEX_STORE = (function () {
       let msg = r.statusText;
       try {
         const err = await r.json();
-        msg = err.detail || msg;
+        if (Array.isArray(err.detail)) {
+          msg = err.detail.map((d) => (d && d.msg ? ((d.loc || []).slice(1).join(".") + ": " + d.msg) : String(d))).join("; ") || msg;
+        } else {
+          msg = err.detail || msg;
+        }
       } catch (_) {}
-      throw new Error(msg);
+      const _e = new Error(msg); _e.status = r.status; /* TIBEX_QABULXONA_FULL_v1 */
+      throw _e;
     }
 
     return r.json();
+  }
+
+  // Serverdan qidirib topilgan (snapshotda yo'q) bemorlar: snapshot yangilanganda
+  // yo'qolmasin, lekin uzoq turib ham qolmasin (boshqa foydalanuvchi o'chirgan bo'lishi mumkin).
+  const _EXTRA_TTL_MS = 2 * 60 * 1000;
+  const _extraPatients = new Map(); // id(string) -> { p, t }
+  function _reapplyExtraPatients() {
+    if (!_cache) return;
+    if (!_cache.patients || Array.isArray(_cache.patients)) _cache.patients = _cache.patients ? {} : {};
+    const now = Date.now();
+    for (const [k, v] of _extraPatients) {
+      if (now - v.t > _EXTRA_TTL_MS) { _extraPatients.delete(k); continue; }
+      if (!_cache.patients[k]) _cache.patients[k] = v.p;
+    }
   }
 
   // ─── Optimistic update ───
@@ -201,6 +222,22 @@ window.TIBEX_STORE = (function () {
     }
   }
 
+  // O'chirish: avval keshdan olib tashlanadi, xatoda qator qaytariladi va xato yuqoriga uzatiladi.
+  function _deleteWithRollback(entity, url, id) {
+    const prev = (_cache[entity] || []).find((x) => x.id === id);
+    const prevCopy = prev ? { ...prev } : null;
+    _removeLocal(entity, id);
+    _notify("local");
+    return _api(`${url}/${id}`, { method: "DELETE" })
+      .then(() => true)
+      .catch((e) => {
+        if (prevCopy) _addLocal(entity, prevCopy);
+        _notify("local");
+        _err(e);
+        throw e;
+      });
+  }
+
   // ─── Xato toast ───
   function _err(e, fallback = "Xatolik") {
     console.error("[TIBEX]", e);
@@ -217,7 +254,7 @@ window.TIBEX_STORE = (function () {
   const SNAPSHOT_ENTITIES = [
     "users", "patients", "appointments", "lab_orders", "payments", "refunds",
     "doctors", "services", "roles", "equipment", "reagents", "integrations",
-    "audit", "system_info", "shift"
+    "audit", "system_info", "shift", "doctor_profile"
   ];
 
   // FNV-1a (32-bit) over the FULL serialized string (never truncated: a change past
@@ -257,8 +294,9 @@ window.TIBEX_STORE = (function () {
 
   async function _refreshSnapshot() {
     _snapshotRefreshTimer = null;
-    if (!_snapshotRefreshPending || !navigator.onLine || document.visibilityState === "hidden") return;
+    if (!_snapshotRefreshPending || !navigator.onLine || document.visibilityState === "hidden") return false;
 
+    let _ok = true;
     _snapshotRefreshPending = false;
     _snapshotRefreshInFlight = true;
     _lastSnapshotRefreshAt = Date.now();
@@ -268,6 +306,7 @@ window.TIBEX_STORE = (function () {
       const previousRole = api.ROLE;
       const previousUser = JSON.stringify(_currentUser);
       _cache = snap.data || {};
+      _reapplyExtraPatients();
       _currentUser = snap.current_user || _currentUser;
       api.CURRENT_USER = _currentUser;
       api.ROLE = snap.role || _currentUser?.role;
@@ -276,8 +315,22 @@ window.TIBEX_STORE = (function () {
       const roleChanged = Boolean(snap.role && snap.role !== previousRole);
       const currentUserChanged = previousUser !== JSON.stringify(_currentUser);
       if (currentUserChanged) changedEntities.push("current_user");
-      if (changedEntities.length || roleChanged) {
-        if (window.__TIBEX_ROLE_REFRESH__) window.__TIBEX_ROLE_REFRESH__();
+      if (changedEntities.length || roleChanged || currentUserChanged) {
+        // TIBEX_LIVE_DIFF_v1: __TIBEX_ROLE_REFRESH__ faqat ROL/ruxsatlar
+        // o'zgarganda chaqiriladi. Ilgari har qanday eventda chaqirilardi va
+        // u renderAll() qilib, butun sahifani qayta chizardi — flicker.
+        let authzChanged = false;
+        try {
+          const pu = JSON.parse(previousUser || "null") || {};
+          authzChanged = pu.role !== _currentUser?.role || pu.doctor_id !== _currentUser?.doctor_id;
+        } catch (_) { authzChanged = true; }
+        if (roleChanged ||
+            changedEntities.includes("roles") ||
+            (changedEntities.includes("current_user") && authzChanged)) {
+          if (window.__TIBEX_ROLE_REFRESH__) {
+            try { window.__TIBEX_ROLE_REFRESH__(); } catch (_) {}
+          }
+        }
         _notify("external", {
           type: "snapshot.invalidate",
           changedEntities,
@@ -285,12 +338,16 @@ window.TIBEX_STORE = (function () {
         });
       }
     } catch (e) {
+      _ok = false;
       if (e?.message === "UNAUTHORIZED") location.href = "/login.html";
+      else _snapshotRefreshError = e;
     } finally {
       _snapshotRefreshInFlight = false;
       if (_snapshotRefreshPending) _scheduleSnapshotRefresh();
     }
+    return _ok;
   }
+  let _snapshotRefreshError = null;
 
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible" && _snapshotRefreshPending) {
@@ -300,6 +357,11 @@ window.TIBEX_STORE = (function () {
   window.addEventListener("online", () => {
     if (_snapshotRefreshPending) _scheduleSnapshotRefresh();
   });
+
+  // Admin konsoli "Live" belgisi haqiqiy WebSocket holatini ko'rsatishi uchun.
+  function _emitWs(open) {
+    try { window.dispatchEvent(new CustomEvent("tibex:ws", { detail: { open: !!open } })); } catch (_) {}
+  }
 
   function _connectWS() {
     if (_ws && _ws.readyState <= 1) return; // allaqachon ochiq/ochilmoqda
@@ -313,6 +375,7 @@ window.TIBEX_STORE = (function () {
 
     _ws.onopen = () => {
       _wsRetries = 0;
+      _emitWs(true);
       if (_hasConnectedBefore) _scheduleSnapshotRefresh();
       _hasConnectedBefore = true;
       console.log("[TIBEX WS] ulandi");
@@ -327,6 +390,7 @@ window.TIBEX_STORE = (function () {
     };
 
     _ws.onclose = () => {
+      _emitWs(false);
       _scheduleReconnect();
     };
 
@@ -531,6 +595,18 @@ window.TIBEX_STORE = (function () {
 
     // Tarmoq tiklanganda yoki WebSocket sokinlashganda snapshotni cheklangan tarzda yangilash.
     refresh() { _scheduleSnapshotRefresh(); },
+    /* Majburiy yangilash (F5 / "Yangilash"): throttle va kutishsiz serverdan qayta oladi.
+       Muvaffaqiyatda true qaytaradi, xatoda Error tashlaydi. */
+    async refreshNow() {
+      if (!navigator.onLine) throw new Error("Internet yo'q");
+      if (_snapshotRefreshTimer) { clearTimeout(_snapshotRefreshTimer); _snapshotRefreshTimer = null; }
+      for (let i = 0; i < 100 && _snapshotRefreshInFlight; i++) await new Promise((r) => setTimeout(r, 100));
+      _snapshotRefreshPending = true;
+      _snapshotRefreshError = null;
+      const ok = await _refreshSnapshot();
+      if (!ok) throw (_snapshotRefreshError || new Error("Yangilab bo'lmadi"));
+      return true;
+    },
 
     // ─── Sinxron snapshot ───
     getAll() { return _cache || {}; },
@@ -539,6 +615,7 @@ window.TIBEX_STORE = (function () {
 
     subscribe(cb) { _subs.add(cb); return () => _subs.delete(cb); },
     unsubscribe(cb) { _subs.delete(cb); },
+    wsOpen() { return !!(_ws && _ws.readyState === 1); },
 
     // ─── Auth ───
     async logout() {
@@ -560,37 +637,95 @@ window.TIBEX_STORE = (function () {
     getPatient(id) { return ((_cache && _cache.patients) || {})[String(id)]; },
     getAllPatients() { return Object.values((_cache && _cache.patients) || {}); },
 
+    // Serverdan qidiruv natijasini keshga qo'shadi (30 kundan eski bemorlar snapshotda yo'q).
+    // Yangi yozuv qo'shilgan bo'lsa true qaytaradi.
+    forgetPatient(id) { _extraPatients.delete(String(id)); },
+
+    mergePatients(list) {
+      if (!_cache || !Array.isArray(list)) return false;
+      if (!_cache.patients || Array.isArray(_cache.patients)) _cache.patients = {};
+      let added = false;
+      for (const p of list) {
+        if (!p || p.id == null) continue;
+        const k = String(p.id);
+        if (!_cache.patients[k]) added = true;
+        _cache.patients[k] = { ...(_cache.patients[k] || {}), ...p };
+        _extraPatients.set(k, { p: _cache.patients[k], t: Date.now() });
+      }
+      if (added) _notify("local");
+      return added;
+    },
+
     addPatient(data) {
       const temp = { id: -Date.now(), ...data, _pending: true };
       _addLocal("patients", temp);
       _notify("local");
 
-      _api("/api/patients", { method: "POST", body: data })
+      const ready = _api("/api/patients", { method: "POST", body: data })
         .then((real) => {
           _removeLocal("patients", temp.id);
           _cache.patients[String(real.id)] = real;
           _notify("local");
+          return real;
         })
         .catch((e) => {
           _removeLocal("patients", temp.id);
           _notify("local");
           _err(e);
+          throw e;
         });
+      ready.catch(() => {});
+      Object.defineProperty(temp, "ready", { value: ready, enumerable: false });
       return temp;
     },
 
     updatePatient(id, patch) {
+      const prev = _cache.patients[String(id)] ? { ..._cache.patients[String(id)] } : null;
       _patchLocal("patients", id, patch);
       _notify("local");
-      _api(`/api/patients/${id}`, { method: "PATCH", body: patch }).catch(_err);
-      return _cache.patients[String(id)];
+      const p = _api(`/api/patients/${id}`, { method: "PATCH", body: patch })
+        .then((real) => {
+          if (real && real.id !== undefined) _patchLocal("patients", id, real);
+          _notify("local");
+          return real;
+        })
+        .catch((e) => {
+          if (prev) _patchLocal("patients", id, prev);
+          _notify("local");
+          _err(e);
+          throw e;
+        });
+      p.catch(() => {});
+      return p;
     },
 
     deletePatient(id) {
+      const prev = _cache.patients[String(id)] ? { ..._cache.patients[String(id)] } : null;
+      _extraPatients.delete(String(id));
       _removeLocal("patients", id);
       _notify("local");
-      _api(`/api/patients/${id}`, { method: "DELETE" }).catch(_err);
-      return true;
+      return _api(`/api/patients/${id}`, { method: "DELETE" })
+        .then(() => true)
+        .catch((e) => {
+          if (prev) _cache.patients[String(id)] = prev;
+          _notify("local");
+          _err(e);
+          throw e;
+        });
+    },
+
+    // Admin: barcha bemorlarni serverdan sahifalab oladi (snapshot faqat oxirgi kunlarni beradi).
+    async loadAllPatients(maxPages = 25) {
+      const PAGE = 200;
+      const all = [];
+      for (let i = 0; i < maxPages; i++) {
+        const rows = await _api(`/api/patients?limit=${PAGE}&offset=${i * PAGE}`);
+        if (!Array.isArray(rows)) break;
+        all.push(...rows);
+        if (rows.length < PAGE) break;
+      }
+      api.mergePatients(all);
+      return all.length;
     },
 
     countPatientData(id) {
@@ -646,6 +781,7 @@ window.TIBEX_STORE = (function () {
         .then((real) => {
           const i = _cache.appointments.findIndex((x) => x.id === temp.id);
           if (i >= 0) _cache.appointments[i] = real;
+          else _addLocal("appointments", real); // snapshot vaqtinchalik yozuvni olib tashlagan bo'lsa
           _notify("local");
         })
         .catch((e) => {
@@ -657,9 +793,20 @@ window.TIBEX_STORE = (function () {
     },
 
     updateAppointment(id, patch) {
+      // Xatoda optimistik o'zgarishni qaytaramiz (UI serverdan ajralib qolmasin)
+      const prev = (_cache.appointments || []).find((a) => a.id === id);
+      const prevCopy = prev ? { ...prev } : null;
       _patchLocal("appointments", id, patch);
       _notify("local");
-      _api(`/api/appointments/${id}`, { method: "PATCH", body: patch }).catch(_err);
+      _api(`/api/appointments/${id}`, { method: "PATCH", body: patch }).catch((e) => {
+        if (prevCopy) {
+          const i = (_cache.appointments || []).findIndex((a) => a.id === id);
+          if (i >= 0) _cache.appointments[i] = prevCopy;
+          _notify("local");
+        }
+        _err(e);
+        _scheduleSnapshotRefresh();
+      });
       return _cache.appointments.find((a) => a.id === id);
     },
 
@@ -738,6 +885,7 @@ window.TIBEX_STORE = (function () {
         .then((real) => {
           const i = _cache.payments.findIndex((x) => x.id === temp.id);
           if (i >= 0) _cache.payments[i] = real;
+          else _addLocal("payments", real);
           _notify("local");
         })
         .catch((e) => {
@@ -791,8 +939,8 @@ window.TIBEX_STORE = (function () {
       if (!data.fullname || !data.login || !data.password || !data.role) {
         return Promise.reject(new Error("Barcha majburiy maydonlarni to'ldiring"));
       }
-      if (data.password.length < 8) {
-        return Promise.reject(new Error("Parol kamida 8 belgi"));
+      if (data.password.length < 10) {
+        return Promise.reject(new Error("Parol kamida 10 belgi"));
       }
       // Login takrorlanishini oldindan tekshirish
       const exists = (_cache.users || []).some(
@@ -892,35 +1040,62 @@ window.TIBEX_STORE = (function () {
 
     // ─── Doctors ───
     getDoctors() { return _cache.doctors || []; },
+    getDoctorProfile() { return (_cache && _cache.doctor_profile) || null; },
 
     addDoctor(data) {
       const temp = { id: -Date.now(), ...data, active: true, _pending: true };
       _addLocal("doctors", temp);
       _notify("local");
-      _api("/api/doctors", { method: "POST", body: data })
+      const ready = _api("/api/doctors", { method: "POST", body: data })
         .then((real) => {
           const i = _cache.doctors.findIndex((x) => x.id === temp.id);
           if (i >= 0) _cache.doctors[i] = real;
           _notify("local");
+          return real;
         })
         .catch((e) => {
           _removeLocal("doctors", temp.id);
           _notify("local");
           _err(e);
+          throw e;
         });
+      ready.catch(() => {});
+      Object.defineProperty(temp, "ready", { value: ready, enumerable: false });
       return temp;
     },
 
     updateDoctor(id, patch) {
+      const prev = (_cache.doctors || []).find((x) => x.id === id);
+      const prevCopy = prev ? { ...prev } : null;
       _patchLocal("doctors", id, patch);
       _notify("local");
-      _api(`/api/doctors/${id}`, { method: "PATCH", body: patch }).catch(_err);
+      return _api(`/api/doctors/${id}`, { method: "PATCH", body: patch })
+        .then((real) => {
+          if (real && real.id !== undefined) _patchLocal("doctors", id, real);
+          _notify("local");
+          return real;
+        })
+        .catch((e) => {
+          if (prevCopy) _patchLocal("doctors", id, prevCopy);
+          _notify("local");
+          _err(e);
+          throw e;
+        });
     },
 
     deleteDoctor(id) {
+      const prev = (_cache.doctors || []).find((x) => x.id === id);
+      const prevCopy = prev ? { ...prev } : null;
       _removeLocal("doctors", id);
       _notify("local");
-      _api(`/api/doctors/${id}`, { method: "DELETE" }).catch(_err);
+      return _api(`/api/doctors/${id}`, { method: "DELETE" })
+        .then(() => true)
+        .catch((e) => {
+          if (prevCopy) _addLocal("doctors", prevCopy);
+          _notify("local");
+          _err(e);
+          throw e;
+        });
     },
 
     // ─── Services ───
@@ -930,30 +1105,56 @@ window.TIBEX_STORE = (function () {
       const temp = { id: -Date.now(), ...data, active: true, _pending: true };
       _addLocal("services", temp);
       _notify("local");
-      _api("/api/services", { method: "POST", body: data })
+      const ready = _api("/api/services", { method: "POST", body: data })
         .then((real) => {
           const i = _cache.services.findIndex((x) => x.id === temp.id);
           if (i >= 0) _cache.services[i] = real;
           _notify("local");
+          return real;
         })
         .catch((e) => {
           _removeLocal("services", temp.id);
           _notify("local");
           _err(e);
+          throw e;
         });
+      ready.catch(() => {});
+      Object.defineProperty(temp, "ready", { value: ready, enumerable: false });
       return temp;
     },
 
     updateService(id, patch) {
+      const prev = (_cache.services || []).find((x) => x.id === id);
+      const prevCopy = prev ? { ...prev } : null;
       _patchLocal("services", id, patch);
       _notify("local");
-      _api(`/api/services/${id}`, { method: "PATCH", body: patch }).catch(_err);
+      return _api(`/api/services/${id}`, { method: "PATCH", body: patch })
+        .then((real) => {
+          if (real && real.id !== undefined) _patchLocal("services", id, real);
+          _notify("local");
+          return real;
+        })
+        .catch((e) => {
+          if (prevCopy) _patchLocal("services", id, prevCopy);
+          _notify("local");
+          _err(e);
+          throw e;
+        });
     },
 
     deleteService(id) {
+      const prev = (_cache.services || []).find((x) => x.id === id);
+      const prevCopy = prev ? { ...prev } : null;
       _removeLocal("services", id);
       _notify("local");
-      _api(`/api/services/${id}`, { method: "DELETE" }).catch(_err);
+      return _api(`/api/services/${id}`, { method: "DELETE" })
+        .then(() => true)
+        .catch((e) => {
+          if (prevCopy) _addLocal("services", prevCopy);
+          _notify("local");
+          _err(e);
+          throw e;
+        });
     },
 
     // ─── Roles ───
@@ -1009,30 +1210,47 @@ window.TIBEX_STORE = (function () {
       const temp = { id: -Date.now(), ...data, _pending: true };
       _addLocal("equipment", temp);
       _notify("local");
-      _api("/api/equipment", { method: "POST", body: data })
+      const ready = _api("/api/equipment", { method: "POST", body: data })
         .then((real) => {
           const i = _cache.equipment.findIndex((x) => x.id === temp.id);
           if (i >= 0) _cache.equipment[i] = real;
           _notify("local");
+          return real;
         })
         .catch((e) => {
           _removeLocal("equipment", temp.id);
           _notify("local");
           _err(e);
+          throw e;
         });
+      ready.catch(() => {});
+      Object.defineProperty(temp, "ready", { value: ready, enumerable: false });
       return temp;
     },
 
     updateEquipment(id, patch) {
+      const prev = (_cache.equipment || []).find((x) => String(x.id) === String(id));
+      const prevCopy = prev ? { ...prev } : null;
       _patchLocal("equipment", id, patch);
       _notify("local");
-      _api(`/api/equipment/${id}`, { method: "PATCH", body: patch }).catch(_err);
+      const p = _api(`/api/equipment/${id}`, { method: "PATCH", body: patch })
+        .then((real) => {
+          if (real && real.id !== undefined) _patchLocal("equipment", id, real);
+          _notify("local");
+          return real;
+        })
+        .catch((e) => {
+          if (prevCopy) _patchLocal("equipment", id, prevCopy);
+          _notify("local");
+          _err(e);
+          throw e;
+        });
+      p.catch(() => {});
+      return p;
     },
 
     deleteEquipment(id) {
-      _removeLocal("equipment", id);
-      _notify("local");
-      _api(`/api/equipment/${id}`, { method: "DELETE" }).catch(_err);
+      return _deleteWithRollback("equipment", "/api/equipment", id);
     },
 
     // ─── Reagents ───
@@ -1042,30 +1260,47 @@ window.TIBEX_STORE = (function () {
       const temp = { id: -Date.now(), ...data, _pending: true };
       _addLocal("reagents", temp);
       _notify("local");
-      _api("/api/reagents", { method: "POST", body: data })
+      const ready = _api("/api/reagents", { method: "POST", body: data })
         .then((real) => {
           const i = _cache.reagents.findIndex((x) => x.id === temp.id);
           if (i >= 0) _cache.reagents[i] = real;
           _notify("local");
+          return real;
         })
         .catch((e) => {
           _removeLocal("reagents", temp.id);
           _notify("local");
           _err(e);
+          throw e;
         });
+      ready.catch(() => {});
+      Object.defineProperty(temp, "ready", { value: ready, enumerable: false });
       return temp;
     },
 
     updateReagent(id, patch) {
+      const prev = (_cache.reagents || []).find((x) => String(x.id) === String(id));
+      const prevCopy = prev ? { ...prev } : null;
       _patchLocal("reagents", id, patch);
       _notify("local");
-      _api(`/api/reagents/${id}`, { method: "PATCH", body: patch }).catch(_err);
+      const p = _api(`/api/reagents/${id}`, { method: "PATCH", body: patch })
+        .then((real) => {
+          if (real && real.id !== undefined) _patchLocal("reagents", id, real);
+          _notify("local");
+          return real;
+        })
+        .catch((e) => {
+          if (prevCopy) _patchLocal("reagents", id, prevCopy);
+          _notify("local");
+          _err(e);
+          throw e;
+        });
+      p.catch(() => {});
+      return p;
     },
 
     deleteReagent(id) {
-      _removeLocal("reagents", id);
-      _notify("local");
-      _api(`/api/reagents/${id}`, { method: "DELETE" }).catch(_err);
+      return _deleteWithRollback("reagents", "/api/reagents", id);
     },
 
     // ─── Integrations ───
@@ -1076,39 +1311,65 @@ window.TIBEX_STORE = (function () {
       const temp = { id: -Date.now(), ...data, last_sync: null, _pending: true };
       _addLocal("integrations", temp);
       _notify("local");
-      _api("/api/integrations", { method: "POST", body: data })
+      const ready = _api("/api/integrations", { method: "POST", body: data })
         .then((real) => {
           const i = _cache.integrations.findIndex((x) => x.id === temp.id);
           if (i >= 0) _cache.integrations[i] = real;
           _notify("local");
+          return real;
         })
         .catch((e) => {
           _removeLocal("integrations", temp.id);
           _notify("local");
           _err(e);
+          throw e;
         });
+      ready.catch(() => {});
+      Object.defineProperty(temp, "ready", { value: ready, enumerable: false });
       return temp;
     },
 
     updateIntegration(id, patch) {
-      _patchLocal("integrations", id, patch);
+      const prev = (_cache.integrations || []).find((x) => String(x.id) === String(id));
+      const prevCopy = prev ? { ...prev } : null;
+      const safe = { ...patch };
+      delete safe.api_key;  // kalitni keshga yozmaslik
+      _patchLocal("integrations", id, safe);
       _notify("local");
-      _api(`/api/integrations/${id}`, { method: "PATCH", body: patch }).catch(_err);
+      const p = _api(`/api/integrations/${id}`, { method: "PATCH", body: patch })
+        .then((real) => {
+          if (real && real.id !== undefined) _patchLocal("integrations", id, real);
+          _notify("local");
+          return real;
+        })
+        .catch((e) => {
+          if (prevCopy) _patchLocal("integrations", id, prevCopy);
+          _notify("local");
+          _err(e);
+          throw e;
+        });
+      p.catch(() => {});
+      return p;
     },
 
     deleteIntegration(id) {
-      _removeLocal("integrations", id);
-      _notify("local");
-      _api(`/api/integrations/${id}`, { method: "DELETE" }).catch(_err);
+      return _deleteWithRollback("integrations", "/api/integrations", id);
     },
 
+    // Haqiqiy ulanish tekshiruvi: xatoda (sync_ok === false) promise rad etiladi.
     syncIntegration(id) {
-      _api(`/api/integrations/${id}/sync`, { method: "POST" })
+      return _api(`/api/integrations/${id}/sync`, { method: "POST" })
         .then((r) => {
-          _patchLocal("integrations", id, r);
+          const { sync_ok, sync_error, ...row } = r || {};
+          if (row.id !== undefined) _patchLocal("integrations", id, row);
           _notify("local");
+          if (sync_ok === false) throw new Error(sync_error || "Ulanib bo'lmadi");
+          return row;
         })
-        .catch(_err);
+        .catch((e) => {
+          _err(e);
+          throw e;
+        });
     },
 
     // ─── Audit ───
@@ -1168,13 +1429,32 @@ window.TIBEX_STORE = (function () {
     },
 
     // ─── Eksport ───
-    downloadFile(url, fallbackName) {
+    /* Fayl yuklash: xato (403/500) bo'lsa xato matni qaytariladi, jim "yuklandi" bo'lmaydi. */
+    async downloadFile(url, fallbackName) {
+      let r;
+      try {
+        r = await fetch(API + url, { credentials: "include" });
+      } catch (e) {
+        const err = new Error("Yuklab bo'lmadi: server bilan aloqa yo'q");
+        _err(err); throw err;
+      }
+      if (r.status === 401) { location.href = "/login.html"; throw new Error("UNAUTHORIZED"); }
+      if (!r.ok) {
+        let msg = r.statusText || "Xatolik";
+        try { const j = await r.json(); if (j && typeof j.detail === "string") msg = j.detail; } catch (_) {}
+        const err = new Error(r.status === 403 ? (msg || "Ruxsat yo'q") : msg);
+        _err(err); throw err;
+      }
+      const blob = await r.blob();
+      let name = fallbackName || "download";
+      const m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(r.headers.get("Content-Disposition") || "");
+      if (m) { try { name = decodeURIComponent(m[1]); } catch (_) { name = m[1]; } }
+      const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = API + url;
-      a.download = fallbackName || "";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      a.href = href; a.download = name;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(href), 10000);
+      return true;
     },
     exportXlsx(kind) {
       const map = {
@@ -1183,8 +1463,8 @@ window.TIBEX_STORE = (function () {
         audit: "audit.xlsx", lab_orders: "lab_orders.xlsx",
         debtors: "debtors.xlsx",
       };
-      const f = map[kind]; if (!f) return _err(new Error("Noma'lum: " + kind));
-      this.downloadFile(`/api/export/${f}`, f);
+      const f = map[kind]; if (!f) return Promise.reject(_err(new Error("Noma'lum: " + kind)));
+      return this.downloadFile(`/api/export/${f}`, f.replace(".xlsx", ".csv"));
     },
     openPdf(kind) {
       const map = { payments: "payments.pdf" };
@@ -1192,7 +1472,7 @@ window.TIBEX_STORE = (function () {
       window.open(API + `/api/export/${f}`, "_blank");
     },
     exportAllJson() {
-      this.downloadFile("/api/export/all.json", "tibex_backup.json");
+      return this.downloadFile("/api/export/all.json", "tibex_backup.json");
     },
 
     // ─── SMS ───

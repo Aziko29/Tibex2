@@ -1,0 +1,6 @@
+/* tibex-realtime-pro.js dan ko'chirildi (B bosqich): CSP `style-src 'self'` JS da yaratilgan <style> ni bloklaydi.
+   Tegishli HTML sahifalarida <link rel="stylesheet"> bilan ulanadi; qoidalar tartibi avvalgi injektsiya
+   tartibini saqlaydi. `node frontend/tools/hash_assets.js` nomni hash'laydi. */
+
+.sync-status.offline{background:rgba(239,68,68,.15)!important;color:#fca5a5!important}
+.sync-status.offline .dot{background:#ef4444!important;animation:none!important}

@@ -48,24 +48,26 @@ async def error_tracker_middleware(request: Request, call_next):
             status_code=response.status_code,
             ip=client_ip(request) or "?",
         )
-        try:
-            from ..realtime import publish
-            # 5xx — critical, 401/403 — warn, boshqa — info
-            if response.status_code >= 500:
-                level = "critical"
-            elif response.status_code in (401, 403):
-                level = "warn"
-            else:
-                level = "info"
-            await publish("error.created", entry)
-            if response.status_code >= 500:
-                await publish("alert.created", record_alert(
-                    level=level,
-                    title=f"Server xatosi ({response.status_code})",
-                    detail=f"{request.method} {request.url.path}",
-                    source="backend",
-                ))
-        except Exception:
-            pass
+        # TIBEX_ERROR_TRACKER_QUIET_v1: har bir 401/403/404 ni WebSocket'ga
+        # tarqatish keraksiz shovqin — muddati o'tgan cookie, noto'g'ri URL,
+        # begona bot urinishlari — bu NORMAL ish jarayonining bir qismi.
+        # Ilgari 100 ta admin ochiq bo'lsa, har 401 sabab har biriga xabar
+        # yuborilardi (WS flood va ekran pirpirashi). Endi faqat 5xx va 429
+        # (rate-limit) tarqatiladi. Xatolar buferi (xotirada) baribir TO'LIQ
+        # saqlanadi — /api/monitoring/errors orqali ko'rish mumkin.
+        if response.status_code >= 500 or response.status_code == 429:
+            try:
+                from ..realtime import publish
+                level = "critical" if response.status_code >= 500 else "warn"
+                await publish("error.created", entry)
+                if response.status_code >= 500:
+                    await publish("alert.created", record_alert(
+                        level=level,
+                        title=f"Server xatosi ({response.status_code})",
+                        detail=f"{request.method} {request.url.path}",
+                        source="backend",
+                    ))
+            except Exception:
+                pass
 
     return response

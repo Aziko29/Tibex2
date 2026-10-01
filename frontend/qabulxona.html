@@ -21,9 +21,15 @@
 <!-- TIBEX_QABULXONA_IMPROVE_v1 -->
 <!-- TIBEX_QABULXONA_DEDUPE_v2 -->
 <!-- TIBEX_QABULXONA_MOVE_BTN_v1 -->
-  <link rel="stylesheet" href="static/css/tibex-base.css">
-  <link rel="stylesheet" href="static/css/reception.c516e04e.css">
-<link rel="stylesheet" href="static/css/tibex-console.css">
+  <link rel="stylesheet" href="static/css/tibex-base.873e7ecc.css">
+  <link rel="stylesheet" href="static/css/reception.ab1b1c6a.css">
+<link rel="stylesheet" href="static/css/tibex-console.acccabb6.css">
+<link rel="stylesheet" href="static/css/tibex-session.67c519b3.css">
+<link rel="stylesheet" href="static/css/tibex-password.7fa1c8f6.css">
+<link rel="stylesheet" href="static/css/tibex-settings.d1f62816.css">
+<link rel="stylesheet" href="static/css/tibex-notifications.c3b2eefe.css">
+<link rel="stylesheet" href="static/css/tibex-realtime-pro.a3bdd580.css">
+<link rel="stylesheet" href="static/css/reception-full.7fce8378.css">
 </head>
 <body>
 
@@ -36,15 +42,17 @@
   <div class="sync-status" id="syncStatus"><span class="dot"></span><span>Live</span></div>
   <div class="spacer"></div>
   <!-- TIBEX_QABULXONA_MOVE_BTN_v1: btnNewPatient → sidebar'ga o'tkazildi -->
-  <button class="icon-btn" id="btnHelp" title="Yordam (F1)">?</button>
-  <button class="icon-btn" title="Chiqish">🚪</button>
+  <button type="button" class="icon-btn" id="btnHelp" title="Yordam (F1)" aria-label="Yordam">?</button>
+  <button type="button" class="icon-btn" id="btnLogout" title="Chiqish" aria-label="Chiqish">🚪</button>
 </div>
 
 <div class="tabs-bar">
   <button class="tab active" data-view="dashboard">📊 Bugun</button>
-  <button class="tab" data-view="patients">🧑 Bemorlar <span class="badge" id="tabPatientsBadge">0</span></button>
-  <button class="tab" data-view="appointments">📅 Navbatlar <span class="badge" id="tabApptsBadge">0</span></button>
-  <button class="tab" data-view="payments">💰 To'lovlar</button>
+  <button class="tab" data-view="live" data-perm="appointments.view">🛎 Jonli navbat</button>
+  <button class="tab" data-view="schedule" data-perm="appointments.view">🗓 Jadval</button>
+  <button class="tab" data-view="patients" data-perm="patients.view">🧑 Bemorlar <span class="badge" id="tabPatientsBadge">0</span></button>
+  <button class="tab" data-view="appointments" data-perm="appointments.view">📅 Navbatlar <span class="badge" id="tabApptsBadge">0</span></button>
+  <button class="tab" data-view="payments" data-perm="payments.view">💰 To'lovlar</button>
 </div>
 
 <div class="main">
@@ -57,6 +65,14 @@
       </button>
       <button class="quick-action primary" id="qaNewAppt"><span class="ico">📅</span> Yangi navbat <span class="kbd">F3</span></button>
       <button class="quick-action purple" id="qaSearch"><span class="ico">🔍</span> Bemor qidirish <span class="kbd">F4</span></button>
+    </div>
+
+    <div class="sidebar-section" id="qfTools">
+      <div class="sidebar-title">Qabulxona vositalari</div>
+      <button type="button" class="quick-action green" id="qfQuickReg" data-perm="patients.create&appointments.create"><span class="ico">⚡</span> Tezkor ro'yxatga olish</button>
+      <button type="button" class="quick-action purple" id="qfFind"><span class="ico">🔍</span> Bemor qidirish <span class="kbd">F4</span></button>
+      <button type="button" class="quick-action primary" id="qfLate"><span class="ico">⏰</span> Kechikkanlar <span class="badge" id="qfLateBadge">0</span></button>
+      <button type="button" class="quick-action" id="qfReceipt" data-perm="payments.view"><span class="ico">🧾</span> Chek chop etish</button>
     </div>
 
     <div class="sidebar-section">
@@ -126,18 +142,43 @@
       </div>
     </div>
 
+    <!-- LIVE QUEUE (TIBEX_QABULXONA_FULL_v1) -->
+    <div class="view" data-view-content="live">
+      <div class="block">
+        <div class="page-header"><div class="title">🛎 Jonli navbat <span class="count" id="qfLiveCount">0</span></div>
+          <div class="actions"><button type="button" class="btn" id="qfLiveRefresh">↻ Yangilash</button></div></div>
+        <div class="qf-board" id="qfBoard" aria-live="polite"></div>
+      </div>
+    </div>
+
+    <!-- SCHEDULE (TIBEX_QABULXONA_FULL_v1) -->
+    <div class="view" data-view-content="schedule">
+      <div class="block">
+        <div class="page-header"><div class="title">🗓 Jadval</div>
+          <div class="actions">
+            <button type="button" class="btn" id="qfDatePrev" aria-label="Oldingi kun">◀</button>
+            <input type="date" class="input qf-date" id="qfDate" aria-label="Sana">
+            <button type="button" class="btn" id="qfDateNext" aria-label="Keyingi kun">▶</button>
+            <button type="button" class="btn" id="qfDateToday">Bugun</button>
+          </div></div>
+        <div class="qf-sched-wrap" id="qfSchedule"></div>
+      </div>
+    </div>
+
     <!-- PATIENTS -->
     <div class="view" data-view-content="patients">
       <div class="block">
         <div class="page-header"><div class="title">🧑 Bemorlar ro'yxati</div></div>
         <div class="search-bar">
-          <div class="search-input-wrap"><span class="search-icon">🔍</span><input type="text" id="patientsSearch" placeholder="F.I.Sh, telefon yoki ID..."></div>
+          <div class="search-input-wrap"><span class="search-icon">🔍</span><input type="text" id="patientsSearch" aria-label="Bemor qidirish" placeholder="F.I.Sh, telefon yoki ID..."></div>
           <!-- TIBEX_AUDIT_v1: btnNewPatient2 olib tashlandi (topbar'da bor) -->
         </div>
         <div class="filters">
           <button class="filter-chip on" data-pfilter="all">Barchasi <span class="n" id="pfAll">0</span></button>
           <button class="filter-chip" data-pfilter="recent">🆕 Oxirgi 7 kun</button>
           <button class="filter-chip" data-pfilter="today">📅 Bugun qo'shilgan</button>
+          <button class="filter-chip" data-pfilter="debtor">💸 Qarzdor</button>
+          <button class="filter-chip" data-pfilter="visit">🛎 Bugun kelganlar</button>
         </div>
         <div class="block-body">
           <table class="data-table">
@@ -150,6 +191,7 @@
             <tbody id="patientsBody"></tbody>
           </table>
         </div>
+        <div class="qf-pager" id="pPager"></div>
       </div>
     </div>
 
@@ -213,7 +255,7 @@
       <div class="block">
         <div class="page-header">
           <div class="title">✓ Bugungi to'lovlar <span class="count" id="payTodayCount">0</span></div>
-          <div class="actions"><span class="font-mono fw-700 text-ok" id="payTodaySum">0</span></div>
+          <div class="actions"><button type="button" class="btn" id="qfExport" data-perm="reports.export&payments.view">⬇ Excel</button><span class="font-mono fw-700 text-ok" id="payTodaySum">0</span></div>
         </div>
         <div class="block-body">
           <table class="data-table">
@@ -276,6 +318,7 @@
         </div>
       </div>
     </div>
+    <div class="qf-err pad-10" id="pErr" role="alert"></div>
     <div class="modal-foot">
       <button class="btn" data-close>Bekor qilish</button>
       <button class="btn primary" id="btnSavePatient">✓ Saqlash</button>
@@ -319,10 +362,11 @@
           </div>
         </div>
         <div class="form-field grid-span"><label>Shikoyat</label><textarea class="textarea" id="aComplaint" rows="2" placeholder="Bemor shikoyati (ixtiyoriy)..."></textarea></div>
-        <div class="form-field"><label>To'langan (so'm)</label><input class="input" id="aPaid" type="number" value="0"></div>
-        <div class="form-field"><label>Qarz (so'm)</label><input class="input" id="aDebt" type="number" value="0"></div>
+        <div class="form-field qf-hidden"><label>To'langan (so'm)</label><input class="input" id="aPaid" type="number" value="0"></div>
+        <div class="form-field qf-hidden"><label>Qarz (so'm)</label><input class="input" id="aDebt" type="number" value="0"></div>
       </div>
     </div>
+    <div class="qf-err pad-10" id="aErr" role="alert"></div>
     <div class="modal-foot">
       <button class="btn" data-close>Bekor qilish</button>
       <button class="btn primary" id="btnSaveAppt">✓ Navbat yaratish</button>
@@ -356,6 +400,9 @@
           </select>
         </div>
       </div>
+      <div class="form-grid"><div class="form-field grid-span"><label for="payDiscount">Chegirma (%) <span class="fs-11 text-muted" id="payDiscHint"></span></label><input class="input" id="payDiscount" type="number" min="0" max="100" value="0"></div></div>
+      <div class="mono-box-sm" id="payCalc"></div>
+      <div class="qf-err" id="payErr" role="alert"></div>
       <div class="mono-box-sm">
         <div class="kv-row-tight"><span>Avval to'langan:</span><b class="font-mono" id="payOldPaid">0</b></div>
         <div class="kv-row-tight"><span>Qarz:</span><b class="font-mono text-danger" id="payOldDebt">0</b></div>
@@ -366,6 +413,66 @@
       <button class="btn success" id="btnSavePayment">✓ To'lovni qabul qilish</button>
     </div>
   </div>
+</div>
+
+<!-- MODAL: QUICK REG (TIBEX_QABULXONA_FULL_v1) -->
+<div class="modal-backdrop" id="modalQuick" role="dialog" aria-modal="true" aria-labelledby="qrTitle">
+  <div class="modal wide">
+    <div class="modal-head"><h3 id="qrTitle">⚡ Tezkor ro'yxatga olish — 1/2</h3><button type="button" class="close" data-close aria-label="Yopish">✕</button></div>
+    <div class="modal-body">
+      <div class="form-grid" id="qrStep1">
+        <div class="form-field grid-span"><label for="qrName">F.I.Sh <span class="req">*</span></label><input class="input" id="qrName" autocomplete="off"></div>
+        <div class="form-field"><label for="qrPhone">Telefon <span class="req">*</span></label><input class="input" id="qrPhone" value="+998 " inputmode="tel"></div>
+        <div class="form-field"><label for="qrAge">Yosh <span class="req">*</span></label><input class="input" id="qrAge" type="number" min="0" max="120"></div>
+        <div class="form-field"><label for="qrGender">Jins</label><select class="select" id="qrGender"><option>Erkak</option><option>Ayol</option></select></div>
+      </div>
+      <div class="form-grid qf-hidden" id="qrStep2">
+        <div class="form-field"><label for="qrDoctor">Shifokor <span class="req">*</span></label><select class="select" id="qrDoctor"></select></div>
+        <div class="form-field"><label for="qrService">Xizmat <span class="req">*</span></label><select class="select" id="qrService"></select></div>
+        <div class="form-field"><label for="qrDate">Sana</label><input class="input" id="qrDate" type="date"></div>
+        <div class="form-field"><label for="qrTime">Vaqt</label><input class="input" id="qrTime" type="time"></div>
+      </div>
+      <div class="qf-err" id="qrErr" role="alert"></div>
+    </div>
+    <div class="modal-foot">
+      <button type="button" class="btn" data-close>Bekor qilish</button>
+      <button type="button" class="btn" id="qrBack">◀ Orqaga</button>
+      <button type="button" class="btn primary" id="qrNext">Keyingisi ▶</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: LATE -->
+<div class="modal-backdrop" id="modalLate" role="dialog" aria-modal="true" aria-label="Kechikkanlar">
+  <div class="modal wide">
+    <div class="modal-head"><h3>⏰ Kechikkanlar</h3><button type="button" class="close" data-close aria-label="Yopish">✕</button></div>
+    <div class="modal-body" id="qfLateBody"></div>
+    <div class="modal-foot"><button type="button" class="btn" data-close>Yopish</button></div>
+  </div>
+</div>
+
+<!-- MODAL: RECEIPT -->
+<div class="modal-backdrop" id="modalReceipt" role="dialog" aria-modal="true" aria-label="Chek">
+  <div class="modal">
+    <div class="modal-head"><h3>🧾 Chek chop etish</h3><button type="button" class="close" data-close aria-label="Yopish">✕</button></div>
+    <div class="modal-body" id="qfReceiptBody"></div>
+    <div class="modal-foot"><button type="button" class="btn" data-close>Yopish</button><button type="button" class="btn primary" id="qfPrint">🖨 Chop etish</button></div>
+  </div>
+</div>
+<div id="qfPrintArea" class="qf-print-area"></div>
+
+<!-- MODAL: ASK (sabab/tasdiq) TIBEX_QABULXONA_FULL_v1 -->
+<div class="modal-backdrop" id="modalAsk" role="dialog" aria-modal="true" aria-labelledby="askTitle">
+  <div class="modal"><div class="modal-head"><h3 id="askTitle">Tasdiqlang</h3><button type="button" class="close" data-close aria-label="Yopish">✕</button></div>
+    <div class="modal-body"><p id="askText"></p><textarea class="textarea" id="askReason" rows="2" placeholder="Sabab (kamida 3 belgi)" aria-label="Sabab"></textarea><div class="qf-err" id="askErr" role="alert"></div></div>
+    <div class="modal-foot"><button type="button" class="btn" data-close>Bekor qilish</button><button type="button" class="btn danger" id="askOk">Tasdiqlash</button></div></div>
+</div>
+
+<!-- MODAL: ACCOUNT -->
+<div class="modal-backdrop" id="modalAcc" role="dialog" aria-modal="true" aria-labelledby="accTitle">
+  <div class="modal"><div class="modal-head"><h3 id="accTitle">🔑 Bemor kabineti</h3><button type="button" class="close" data-close aria-label="Yopish">✕</button></div>
+    <div class="modal-body"><div id="accInfo" class="fs-12 text-muted"></div><label for="accPass" class="fs-12">Yangi parol (kamida 10 belgi)</label><input class="input" id="accPass" type="password" autocomplete="new-password"><div class="qf-err" id="accErr" role="alert"></div></div>
+    <div class="modal-foot"><button type="button" class="btn" data-close>Bekor qilish</button><button type="button" class="btn" id="accReset">Parolni tiklash</button><button type="button" class="btn primary" id="accOk">Kabinet yaratish</button></div></div>
 </div>
 
 <!-- MODAL: HISTORY -->
@@ -417,6 +524,7 @@
 
 <script src="static/tibex-sync-guard.js"></script>
 <script src="static/tibex-role-refresh.js"></script>
-<script src="static/js/reception.89e7da86.js"></script>
+<script src="static/js/reception.e45f9111.js"></script>
+<script src="static/js/reception-full.a80ffcac.js"></script>
 </body>
 </html>

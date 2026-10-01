@@ -16,6 +16,7 @@ from .db import dispose as db_dispose
 from .realtime import start_redis_listener, stop_redis_listener
 from .redis_client import close_redis
 from .security.csp import build_csp, make_nonce
+from .security.local_only import LocalOnlyMiddleware, announce_once as _local_only_announce
 
 from .routers import admin_danger
 from .middleware.error_tracker import error_tracker_middleware
@@ -34,6 +35,7 @@ from .routers import lab
 from .routers import monitoring
 from .routers import patient_otp
 from .routers import patient_portal
+from .routers import portal_telegram
 from .routers import patients
 from .routers import payments
 from .routers import reagents
@@ -97,6 +99,7 @@ async def lifespan(app: FastAPI):
         )
 
     _warn_if_env_file_too_open()
+    _local_only_announce()  # TIBEX_LOCAL_ONLY_v1: joriy rejimni bir marta log qiladi
     log.info("TIBEX ishga tushmoqda. env=%s", s.env)
     start_redis_listener()
     try:
@@ -130,14 +133,27 @@ if not _settings.is_prod:
             if _o not in _cors_origins:
                 _cors_origins.append(_o)
 
-# MUHIM: CORSMiddleware endi eng OXIRIDA (fayl oxiriga yaqin) ro'yxatdan
-# o'tkaziladi — Starlette'da har bir app.add_middleware() chaqiruvi yangi
-# middleware'ni stackning old qismiga (eng TASHQI qatlamga) qo'shadi.
-# Shu sababli oxirgi ro'yxatdan o'tgan middleware eng tashqi bo'ladi va
-# HAR QANDAY javobga (shu jumladan boshqa middleware'lar tomonidan
-# qaytarilgan xato javoblariga ham) CORS header qo'shishni kafolatlaydi.
-# Pastda joylashgan bo'lishiga qaramay, bu funksiya darhol chaqirilmaydi —
-# faqat ro'yxatdan o'tkazish tartibi (registration order) muhim.
+# ───────────────────────────────────────────────────────────
+# Middleware registratsiya tartibi (Starlette LIFO)
+#
+# Har bir `add_middleware` chaqiruvi ro'yxatning BOSHIGA qo'shadi; oxirgi
+# ro'yxatdan o'tgan middleware ENG TASHQI qatlam bo'ladi va HAR QANDAY
+# javobga (jumladan boshqa middleware'lar tomonidan qaytarilgan xato
+# javoblariga ham) o'zgartirish kirita oladi.
+#
+# Execution tartibi (tashqaridan ichkariga):
+#   security_headers → LocalOnly → CORS → request_id → sanitize_errors
+#     → request_inspector → error_tracker → app
+#
+# Nima uchun bu tartib:
+#   • security_headers eng tashqi — LocalOnly qaytargan 404 ham CSP/HSTS/
+#     nosniff oladi (aks holda brauzer konsolida xavfsizlik ogohlantirishi
+#     chiqadi).
+#   • LocalOnly CORS'dan TASHQARIDA — rad etilgan so'rov CORS/rate-limit/
+#     threat detector'ga YETIB BORMAYDI (arzon, tez).
+#   • CORS request_id/sanitize'dan tashqarida — 500 javoblarga ham CORS
+#     header qo'shiladi (mavjud xatti-harakat saqlanadi).
+# ───────────────────────────────────────────────────────────
 
 
 # TIBEX_MW_ORDER_FIX_v1: decorator olib tashlandi.
@@ -184,11 +200,8 @@ app.middleware("http")(request_inspector_middleware)
 app.middleware("http")(sanitize_errors_middleware)
 app.middleware("http")(request_id_middleware)
 
-# CORSMiddleware BARCHA boshqa middleware'lardan KEYIN ro'yxatdan o'tkazilishi
-# kerak, shunda u eng tashqi qatlamga chiqadi va sanitize_errors/error_tracker/
-# request_inspector ichida ushlanib, o'zi javob qaytargan xatolarga ham CORS
-# header qo'shiladi (aks holda brauzer buni noto'g'ri "CORS blocked" deb
-# ko'rsatadi, garchi asl sabab 500-xato bo'lsa ham).
+# CORSMiddleware — request_id/sanitize/request_inspector'dan KEYIN, lekin
+# LocalOnly va security_headers'dan OLDIN ro'yxatdan o'tadi.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
@@ -198,11 +211,20 @@ app.add_middleware(
     max_age=600,
 )
 
+# TIBEX_LOCAL_ONLY_v1: default-deny middleware. CORS'dan keyin, lekin
+# security_headers'dan oldin ro'yxatdan o'tadi. Natijada:
+#   • security_headers UNDAN TASHQARIDA — LocalOnly qaytargan 404 ham
+#     CSP/nosniff oladi.
+#   • LocalOnly CORS va request_inspector'dan TASHQARIDA — rad etilgan
+#     so'rov rate-limit/threat-detector'ga yetib bormaydi.
+app.add_middleware(LocalOnlyMiddleware)
+
 # TIBEX_MW_ORDER_FIX_v1: security_headers ENG TASHQI qatlam.
 # Sababi: request_inspector rate-limit/blacklist bo'lsa JSONResponse
 # qaytarib, call_next() ni chaqirmaydi. Eski holatda security_headers
 # (ichki) ishlamay qolardi va headerlar qo'shilmasdi.
-# Endi security_headers HAR QANDAY javobga header qo'shadi.
+# Endi security_headers HAR QANDAY javobga header qo'shadi (LocalOnly
+# 404 ham shu jumladan).
 app.middleware("http")(security_headers)
 
 
@@ -269,6 +291,7 @@ app.include_router(patient_otp.router, prefix="/api/otp", tags=["patient-otp"])
 
 # Bemor kabineti
 app.include_router(patient_portal.router, prefix="/api/portal", tags=["patient-portal"])
+app.include_router(portal_telegram.router, prefix="/api/portal/telegram", tags=["patient-portal"])
 
 # Telegram bot webhook (bemor akkauntini ulash va kod yuborish)
 app.include_router(telegram_router.router, prefix="/api/telegram", tags=["telegram"])
@@ -311,12 +334,29 @@ app.include_router(ws.router, prefix="/api/ws", tags=["ws"])
 # Frontendni serve qilish uchun frontend/README.md ga qarang (nginx/static host).
 # Faqat bitta-jarayonli lokal tekshiruv uchun TIBEX_SERVE_FRONTEND=true qiling —
 # bu holatda ham /api/* bloklanmasligi uchun mount eng oxirida turishi shart.
+#
+# TIBEX_FRONTEND_MOUNT_FIX_v1:
+#   Eski kod `Path(__file__).resolve().parent.parent.parent / "frontend"`
+#   yozardi. Host'da (repo) bu <repo_root>/frontend ni beradi, lekin Docker
+#   konteynerida __file__=/app/app/main.py bo'lgani uchun natija /frontend
+#   bo'lib qolardi — papka esa compose tomonidan /app/frontend ga mount
+#   qilinadi. Natijada mount umuman ishlamay, barcha static URL'lar
+#   FastAPI'dan 404 olardi (jumladan /login.html). Endi bir nechta
+#   nomzodni tekshiramiz.
 if _settings.serve_frontend:
-    _frontend_dir = Path(__file__).resolve().parent.parent.parent / "frontend"
-    if _frontend_dir.is_dir():
+    _here = Path(__file__).resolve()
+    _frontend_candidates = [
+        _here.parent.parent / "frontend",          # /app/frontend           (Docker)
+        _here.parent.parent.parent / "frontend",   # <repo_root>/frontend    (host)
+        Path("/app/frontend"),                     # explicit zaxira
+    ]
+    _frontend_dir = next((p for p in _frontend_candidates if p.is_dir()), None)
+
+    if _frontend_dir is not None:
         log.warning(
             "TIBEX_SERVE_FRONTEND=true — frontend backend jarayoni ichida serve "
-            "qilinmoqda. Bu FAQAT lokal tekshiruv uchun; productionda o'chiring."
+            "qilinmoqda (%s). Bu FAQAT lokal tekshiruv uchun; productionda o'chiring.",
+            _frontend_dir,
         )
         app.mount(
             "/",
@@ -324,4 +364,7 @@ if _settings.serve_frontend:
             name="frontend",
         )
     else:
-        log.warning("Frontend papkasi topilmadi: %s", _frontend_dir)
+        log.warning(
+            "Frontend papkasi topilmadi. Tekshirilgan yo'llar: %s",
+            ", ".join(str(p) for p in _frontend_candidates),
+        )

@@ -20,6 +20,31 @@
 ## Kalit yo'qolsa
 Master kalit yo'qolsa shifrlangan PHI ustunlari **qaytarilmaydi**. Shuning uchun kalitlar zaxira nusxadan alohida saqlanadi (`BACKUP.md`, escrow).
 
+## Secrets baseline (detect-secrets)
+Baseline yo'li hamma joyda bitta: `backend/.secrets.baseline` (pre-commit ham, CI ham shuni ishlatadi). CI faylning
+borligini talab qiladi va `detect-secrets-hook` bilan yiqiladi. Uni tarmoqli muhitda, repo ildizidan bir marta yarating:
+```
+pip install 'detect-secrets==1.5.0'
+git ls-files -z | xargs -0 detect-secrets scan > backend/.secrets.baseline
+detect-secrets audit backend/.secrets.baseline
+```
+`audit` paytida haqiqiy sir chiqsa: to'xtang, sirni **almashtiring** (`ROTATION.md`), keyin baseline'ga qo'shing.
+Faqat soxta/test qiymatlarni "false positive" deb belgilang. Faylni commit qiling.
+**Tezkor yo'l:** `git add -A`, so'ng repo ildizidan `python tools/bootstrap_lockfiles.py` — u baseline va `frontend/package-lock.json` ni birga yaratadi (tarmoq kerak). `audit` qadami qo'lda qoladi.
+`frontend/package-lock.json` ham shu muhitda yaratiladi: `cd frontend && npm install --package-lock-only`, so'ng CI dagi
+`npm ci` shartli tarmog'i o'z-o'zidan ishlaydi.
+
+## tibex.service (birinchi o'rnatish)
+`tibex.service` da `ProtectSystem=strict` bor, yozish faqat `ReadWritePaths` dagi yo'llarga ruxsat. Papka `-` prefiksi bilan
+berilgan, shuning uchun u yo'q bo'lsa ham servis ishga tushadi, lekin zaxira yozilishi uchun papkani yarating:
+```
+sudo install -d -o tibex -g tibex -m 750 /opt/tibex/backend/backups
+sudo cp backend/deploy/tibex.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemd-analyze verify /etc/systemd/system/tibex.service
+sudo systemctl enable --now tibex
+```
+
 ## systemd units
 ```
 sudo cp backend/deploy/tibex-cleanup.{service,timer} /etc/systemd/system/
@@ -28,3 +53,10 @@ sudo cp backend/deploy/tibex-logrotate /etc/logrotate.d/tibex
 sudo systemctl daemon-reload
 sudo systemctl enable --now tibex-cleanup.timer tibex-restore-drill.timer
 ```
+
+## CI: alembic va nginx tekshiruvi
+- `alembic` qadami `get_settings()` ni chaqiradi, shuning uchun CI unga 4 ta majburiy kalitni (`TIBEX_SECRET_KEY`, `TIBEX_MASTER_KEY_B64`,
+  `TIBEX_BLIND_INDEX_KEY_B64`, `TIBEX_PASSWORD_PEPPER`) har yurishda `openssl rand` bilan tasodifiy beradi. Lokal yurgizganda `.env` yetadi.
+  Bir nechta head bo'lsa CI aniq xabar bilan yiqiladi (`alembic merge`).
+- `nginx -t`: `bash backend/deploy/check_nginx.sh` (docker yoki lokal nginx kerak). Skript vaqtinchalik self-signed sertifikat bilan
+  `nginx.conf` ni wrapper ichida tekshiradi va 3 ta CSP nusxasi bir xilligini talab qiladi. CSP'ni o'zgartirsangiz uchala joyni birga o'zgartiring.

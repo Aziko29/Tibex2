@@ -1,0 +1,531 @@
+<!doctype html><html lang="uz"><head><meta charset="utf-8">
+<title>TibexPentest v6.1.0</title><style>
+body{font-family:-apple-system,sans-serif;background:#0d1117;color:#c9d1d9;margin:0;padding:32px}
+.hero{background:linear-gradient(135deg,#7c3aed,#2563eb);padding:32px;border-radius:16px;margin-bottom:24px}
+.hero h1{margin:0;font-size:36px;color:#fff}.score{font-size:72px;font-weight:900;color:#fff}
+.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:16px;margin:24px 0}
+.stat{background:#161b22;padding:20px;border-radius:12px;text-align:center;border:1px solid #30363d}
+.stat b{display:block;font-size:32px}.stat.critical b{color:#f85149}.stat.high b{color:#db6d28}
+.stat.medium b{color:#d29922}.stat.low b{color:#3fb950}.stat.info b{color:#58a6ff}
+table{width:100%;border-collapse:collapse;margin-top:16px;background:#161b22;border-radius:12px;overflow:hidden}
+th,td{padding:12px 16px;text-align:left;border-bottom:1px solid #30363d}
+th{background:#1f2937;font-size:13px;text-transform:uppercase}
+.badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700}
+.badge.critical{background:#f85149;color:#fff}.badge.high{background:#db6d28;color:#fff}
+.badge.medium{background:#d29922;color:#000}.badge.low{background:#3fb950;color:#000}
+.badge.info{background:#58a6ff;color:#000}
+.badge.verified{background:#3fb950;color:#000}
+.badge.unverified{background:#6e7681;color:#fff}
+.detail{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:20px;margin:16px 0}
+pre{background:#010409;padding:16px;border-radius:8px;overflow-x:auto;font-size:13px}
+code{background:#1f2937;padding:2px 6px;border-radius:4px}</style></head><body>
+<div class="hero">
+<h1>TibexPentest v6.1.0 — HARDENED EDITION</h1>
+<p><b>Target:</b> http://localhost:8000</p>
+<p><b>Scan ID:</b> 9401dc571dad455093338c72bd46784f</p>
+<p><b>Vaqt:</b> 2026-10-01T22:37:40.003853</p>
+<div class="score">Risk: 100/100</div>
+</div>
+<div class="grid">
+<div class="stat critical"><b>16</b>Critical</div>
+<div class="stat high"><b>26</b>High</div>
+<div class="stat medium"><b>0</b>Medium</div>
+<div class="stat low"><b>0</b>Low</div>
+<div class="stat info"><b>0</b>Info</div>
+<div class="stat"><b>42</b>Jami</div>
+</div>
+<h2>Attack Statistics</h2>
+<pre>{
+  "routes_seen": 1452,
+  "routes_attacked": 1452,
+  "routes_retried": 966,
+  "requests_sent": 11723,
+  "payloads_tried": 10704,
+  "probes_run": 225,
+  "probes_timed_out": 0,
+  "hits": 30,
+  "hits_verified": 16,
+  "hits_unverified": 14,
+  "timeouts": 0,
+  "conn_errors": 0,
+  "oob_hits": 0,
+  "rate_limited": 0,
+  "unique_endpoints_hit": 14,
+  "by_probe": {
+    "injection-ssti": 30
+  },
+  "by_status": {
+    "301": 427,
+    "200": 424,
+    "403": 10864,
+    "404": 8
+  }
+}</pre>
+<h2>Discovery</h2>
+<pre>{
+  "total_routes": 486,
+  "openapi": 0,
+  "static": 139,
+  "runtime": 47,
+  "crawler": 300,
+  "sourcemap": 0,
+  "websocket": 2
+}</pre>
+
+<h2>Zaifliklar (28)</h2>
+<table><thead><tr><th>Sev</th><th>Conf</th><th>Title</th><th>Endpoint</th><th>CVSS</th><th>Module</th><th>Technique</th></tr></thead><tbody>
+<tr>
+<td><span class="badge high">HIGH</span></td>
+<td><span class="badge verified">high</span></td>
+<td>Hardcoded: Password</td><td><code>GET file://project_snapshot.py:145</code></td>
+<td>7.5</td><td>static</td><td>static-scan</td>
+</tr><tr>
+<td><span class="badge high">HIGH</span></td>
+<td><span class="badge verified">high</span></td>
+<td>Hardcoded: Postgres URL</td><td><code>GET file://project_snapshot.py:148</code></td>
+<td>7.5</td><td>static</td><td>static-scan</td>
+</tr><tr>
+<td><span class="badge high">HIGH</span></td>
+<td><span class="badge verified">high</span></td>
+<td>Hardcoded: Password</td><td><code>GET file://tibexpentest.py:896</code></td>
+<td>7.5</td><td>static</td><td>static-scan</td>
+</tr><tr>
+<td><span class="badge high">HIGH</span></td>
+<td><span class="badge verified">high</span></td>
+<td>Hardcoded: Postgres URL</td><td><code>GET file://tibexpentest.py:2405</code></td>
+<td>7.5</td><td>static</td><td>static-scan</td>
+</tr><tr>
+<td><span class="badge high">HIGH</span></td>
+<td><span class="badge verified">high</span></td>
+<td>Hardcoded: Password</td><td><code>GET file://tibexpentest_v6.py:1705</code></td>
+<td>7.5</td><td>static</td><td>static-scan</td>
+</tr><tr>
+<td><span class="badge high">HIGH</span></td>
+<td><span class="badge verified">high</span></td>
+<td>Hardcoded: Postgres URL</td><td><code>GET file://tibexpentest_v6.py:4432</code></td>
+<td>7.5</td><td>static</td><td>static-scan</td>
+</tr><tr>
+<td><span class="badge high">HIGH</span></td>
+<td><span class="badge verified">high</span></td>
+<td>Hardcoded: Password</td><td><code>GET file://backend\tests\conftest.py:51</code></td>
+<td>7.5</td><td>static</td><td>static-scan</td>
+</tr><tr>
+<td><span class="badge high">HIGH</span></td>
+<td><span class="badge verified">high</span></td>
+<td>Hardcoded: Password</td><td><code>GET file://backend\tests\test_auth_flow.py:63</code></td>
+<td>7.5</td><td>static</td><td>static-scan</td>
+</tr><tr>
+<td><span class="badge high">HIGH</span></td>
+<td><span class="badge verified">high</span></td>
+<td>Hardcoded: Password</td><td><code>GET file://backend\tests\test_role_change_to_doctor.py:11</code></td>
+<td>7.5</td><td>static</td><td>static-scan</td>
+</tr><tr>
+<td><span class="badge high">HIGH</span></td>
+<td><span class="badge verified">high</span></td>
+<td>Hardcoded: Password</td><td><code>GET file://backend\tests\test_security_regressions.py:292</code></td>
+<td>7.5</td><td>static</td><td>static-scan</td>
+</tr><tr>
+<td><span class="badge high">HIGH</span></td>
+<td><span class="badge verified">high</span></td>
+<td>Hardcoded: Password</td><td><code>GET file://backend\tests\test_security_regressions.py:294</code></td>
+<td>7.5</td><td>static</td><td>static-scan</td>
+</tr><tr>
+<td><span class="badge high">HIGH</span></td>
+<td><span class="badge verified">high</span></td>
+<td>Hardcoded: Password</td><td><code>GET file://backend\tests\test_security_regressions.py:295</code></td>
+<td>7.5</td><td>static</td><td>static-scan</td>
+</tr><tr>
+<td><span class="badge critical">CRITICAL</span></td>
+<td><span class="badge verified">high</span></td>
+<td>SSTI (Server-Side Template Injection)</td><td><code>GET /metrics</code></td>
+<td>9.5</td><td>injection-ssti</td><td>raw|GET|name</td>
+</tr><tr>
+<td><span class="badge critical">CRITICAL</span></td>
+<td><span class="badge verified">high</span></td>
+<td>SSTI (Server-Side Template Injection)</td><td><code>GET /</code></td>
+<td>9.5</td><td>injection-ssti</td><td>raw|GET|name</td>
+</tr><tr>
+<td><span class="badge critical">CRITICAL</span></td>
+<td><span class="badge verified">high</span></td>
+<td>SSTI (Server-Side Template Injection)</td><td><code>GET /verify</code></td>
+<td>9.5</td><td>injection-ssti</td><td>url2|GET|q</td>
+</tr><tr>
+<td><span class="badge critical">CRITICAL</span></td>
+<td><span class="badge verified">high</span></td>
+<td>SSTI (Server-Side Template Injection)</td><td><code>POST /demo-reset</code></td>
+<td>9.5</td><td>injection-ssti</td><td>raw|POST|q</td>
+</tr><tr>
+<td><span class="badge critical">CRITICAL</span></td>
+<td><span class="badge verified">high</span></td>
+<td>SSTI (Server-Side Template Injection)</td><td><code>POST /clear</code></td>
+<td>9.5</td><td>injection-ssti</td><td>raw|POST|q</td>
+</tr><tr>
+<td><span class="badge critical">CRITICAL</span></td>
+<td><span class="badge verified">high</span></td>
+<td>SSTI (Server-Side Template Injection)</td><td><code>POST /</code></td>
+<td>9.5</td><td>injection-ssti</td><td>raw|POST|q</td>
+</tr><tr>
+<td><span class="badge critical">CRITICAL</span></td>
+<td><span class="badge verified">high</span></td>
+<td>SSTI (Server-Side Template Injection)</td><td><code>POST /login</code></td>
+<td>9.5</td><td>injection-ssti</td><td>raw|POST|q</td>
+</tr><tr>
+<td><span class="badge critical">CRITICAL</span></td>
+<td><span class="badge verified">high</span></td>
+<td>SSTI (Server-Side Template Injection)</td><td><code>GET /bootstrap</code></td>
+<td>9.5</td><td>injection-ssti</td><td>url|GET|template</td>
+</tr><tr>
+<td><span class="badge critical">CRITICAL</span></td>
+<td><span class="badge verified">high</span></td>
+<td>SSTI (Server-Side Template Injection)</td><td><code>GET /admin/audit</code></td>
+<td>9.5</td><td>injection-ssti</td><td>url|GET|name</td>
+</tr><tr>
+<td><span class="badge critical">CRITICAL</span></td>
+<td><span class="badge verified">high</span></td>
+<td>SSTI (Server-Side Template Injection)</td><td><code>GET /status</code></td>
+<td>9.5</td><td>injection-ssti</td><td>url2|GET|name</td>
+</tr><tr>
+<td><span class="badge critical">CRITICAL</span></td>
+<td><span class="badge verified">high</span></td>
+<td>SSTI (Server-Side Template Injection)</td><td><code>POST /session</code></td>
+<td>9.5</td><td>injection-ssti</td><td>url|POST|name</td>
+</tr><tr>
+<td><span class="badge critical">CRITICAL</span></td>
+<td><span class="badge verified">high</span></td>
+<td>SSTI (Server-Side Template Injection)</td><td><code>POST /verify</code></td>
+<td>9.5</td><td>injection-ssti</td><td>raw|POST|name</td>
+</tr><tr>
+<td><span class="badge critical">CRITICAL</span></td>
+<td><span class="badge verified">high</span></td>
+<td>SSTI (Server-Side Template Injection)</td><td><code>POST /csp-report</code></td>
+<td>9.5</td><td>injection-ssti</td><td>url|POST|q</td>
+</tr><tr>
+<td><span class="badge critical">CRITICAL</span></td>
+<td><span class="badge verified">high</span></td>
+<td>SSTI (Server-Side Template Injection)</td><td><code>POST /alert</code></td>
+<td>9.5</td><td>injection-ssti</td><td>url2|POST|q</td>
+</tr><tr>
+<td><span class="badge critical">CRITICAL</span></td>
+<td><span class="badge verified">high</span></td>
+<td>SSTI (Server-Side Template Injection)</td><td><code>POST /admin/enable</code></td>
+<td>9.5</td><td>injection-ssti</td><td>url2|POST|q</td>
+</tr><tr>
+<td><span class="badge critical">CRITICAL</span></td>
+<td><span class="badge verified">high</span></td>
+<td>SSTI (Server-Side Template Injection)</td><td><code>POST /admin/disable</code></td>
+<td>9.5</td><td>injection-ssti</td><td>url2|POST|q</td>
+</tr></tbody></table>
+
+<h2>Batafsil</h2>
+<div class="detail">
+<h3><span class="badge high">HIGH</span> Hardcoded: Password
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>GET file://project_snapshot.py:145</code></p>
+<p><b>CVSS:</b> 7.5 | <b>CWE:</b> CWE-798 | <b>Module:</b> static
+| <b>Technique:</b> <code>static-scan</code></p>
+<p><b>Tavsif:</b> project_snapshot.py:145</p>
+
+<pre>Password: password = "abc123"</pre>
+
+<p><b>Tavsiya:</b> .env / secret manager.</p>
+</div><div class="detail">
+<h3><span class="badge high">HIGH</span> Hardcoded: Postgres URL
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>GET file://project_snapshot.py:148</code></p>
+<p><b>CVSS:</b> 7.5 | <b>CWE:</b> CWE-798 | <b>Module:</b> static
+| <b>Technique:</b> <code>static-scan</code></p>
+<p><b>Tavsif:</b> project_snapshot.py:148</p>
+
+<pre>Postgres URL: postgres://user:pass@host</pre>
+
+<p><b>Tavsiya:</b> .env / secret manager.</p>
+</div><div class="detail">
+<h3><span class="badge high">HIGH</span> Hardcoded: Password
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>GET file://tibexpentest.py:896</code></p>
+<p><b>CVSS:</b> 7.5 | <b>CWE:</b> CWE-798 | <b>Module:</b> static
+| <b>Technique:</b> <code>static-scan</code></p>
+<p><b>Tavsif:</b> tibexpentest.py:896</p>
+
+<pre>Password: PASSWORD=" in e.upper():
+                            v = e.split("</pre>
+
+<p><b>Tavsiya:</b> .env / secret manager.</p>
+</div><div class="detail">
+<h3><span class="badge high">HIGH</span> Hardcoded: Postgres URL
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>GET file://tibexpentest.py:2405</code></p>
+<p><b>CVSS:</b> 7.5 | <b>CWE:</b> CWE-798 | <b>Module:</b> static
+| <b>Technique:</b> <code>static-scan</code></p>
+<p><b>Tavsif:</b> tibexpentest.py:2405</p>
+
+<pre>Postgres URL: postgres://{user}@{host}:{port}/{db}</pre>
+
+<p><b>Tavsiya:</b> .env / secret manager.</p>
+</div><div class="detail">
+<h3><span class="badge high">HIGH</span> Hardcoded: Password
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>GET file://tibexpentest_v6.py:1705</code></p>
+<p><b>CVSS:</b> 7.5 | <b>CWE:</b> CWE-798 | <b>Module:</b> static
+| <b>Technique:</b> <code>static-scan</code></p>
+<p><b>Tavsif:</b> tibexpentest_v6.py:1705</p>
+
+<pre>Password: PASSWORD=" in e.upper():
+                            v = e.split("</pre>
+
+<p><b>Tavsiya:</b> .env / secret manager.</p>
+</div><div class="detail">
+<h3><span class="badge high">HIGH</span> Hardcoded: Postgres URL
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>GET file://tibexpentest_v6.py:4432</code></p>
+<p><b>CVSS:</b> 7.5 | <b>CWE:</b> CWE-798 | <b>Module:</b> static
+| <b>Technique:</b> <code>static-scan</code></p>
+<p><b>Tavsif:</b> tibexpentest_v6.py:4432</p>
+
+<pre>Postgres URL: postgres://{user}@{host}:{port}/{db}</pre>
+
+<p><b>Tavsiya:</b> .env / secret manager.</p>
+</div><div class="detail">
+<h3><span class="badge high">HIGH</span> Hardcoded: Password
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>GET file://backend\tests\conftest.py:51</code></p>
+<p><b>CVSS:</b> 7.5 | <b>CWE:</b> CWE-798 | <b>Module:</b> static
+| <b>Technique:</b> <code>static-scan</code></p>
+<p><b>Tavsif:</b> backend\tests\conftest.py:51</p>
+
+<pre>Password: PASSWORD = "Rbac-Test#2026-pass"</pre>
+
+<p><b>Tavsiya:</b> .env / secret manager.</p>
+</div><div class="detail">
+<h3><span class="badge high">HIGH</span> Hardcoded: Password
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>GET file://backend\tests\test_auth_flow.py:63</code></p>
+<p><b>CVSS:</b> 7.5 | <b>CWE:</b> CWE-798 | <b>Module:</b> static
+| <b>Technique:</b> <code>static-scan</code></p>
+<p><b>Tavsif:</b> backend\tests\test_auth_flow.py:63</p>
+
+<pre>Password: password="wrong-password"</pre>
+
+<p><b>Tavsiya:</b> .env / secret manager.</p>
+</div><div class="detail">
+<h3><span class="badge high">HIGH</span> Hardcoded: Password
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>GET file://backend\tests\test_role_change_to_doctor.py:11</code></p>
+<p><b>CVSS:</b> 7.5 | <b>CWE:</b> CWE-798 | <b>Module:</b> static
+| <b>Technique:</b> <code>static-scan</code></p>
+<p><b>Tavsif:</b> backend\tests\test_role_change_to_doctor.py:11</p>
+
+<pre>Password: PASSWORD = "Str0ng!Passw0rd#1"</pre>
+
+<p><b>Tavsiya:</b> .env / secret manager.</p>
+</div><div class="detail">
+<h3><span class="badge high">HIGH</span> Hardcoded: Password
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>GET file://backend\tests\test_security_regressions.py:292</code></p>
+<p><b>CVSS:</b> 7.5 | <b>CWE:</b> CWE-798 | <b>Module:</b> static
+| <b>Technique:</b> <code>static-scan</code></p>
+<p><b>Tavsif:</b> backend\tests\test_security_regressions.py:292</p>
+
+<pre>Password: password="tibex_2026"</pre>
+
+<p><b>Tavsiya:</b> .env / secret manager.</p>
+</div><div class="detail">
+<h3><span class="badge high">HIGH</span> Hardcoded: Password
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>GET file://backend\tests\test_security_regressions.py:294</code></p>
+<p><b>CVSS:</b> 7.5 | <b>CWE:</b> CWE-798 | <b>Module:</b> static
+| <b>Technique:</b> <code>static-scan</code></p>
+<p><b>Tavsif:</b> backend\tests\test_security_regressions.py:294</p>
+
+<pre>Password: password="Strong@Pass2026"</pre>
+
+<p><b>Tavsiya:</b> .env / secret manager.</p>
+</div><div class="detail">
+<h3><span class="badge high">HIGH</span> Hardcoded: Password
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>GET file://backend\tests\test_security_regressions.py:295</code></p>
+<p><b>CVSS:</b> 7.5 | <b>CWE:</b> CWE-798 | <b>Module:</b> static
+| <b>Technique:</b> <code>static-scan</code></p>
+<p><b>Tavsif:</b> backend\tests\test_security_regressions.py:295</p>
+
+<pre>Password: password="Strong@Pass2026"</pre>
+
+<p><b>Tavsiya:</b> .env / secret manager.</p>
+</div><div class="detail">
+<h3><span class="badge critical">CRITICAL</span> SSTI (Server-Side Template Injection)
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>GET /metrics</code></p>
+<p><b>CVSS:</b> 9.5 | <b>CWE:</b> CWE-1336 | <b>Module:</b> injection-ssti
+| <b>Technique:</b> <code>raw|GET|name</code></p>
+
+<p><b>Payload:</b> <code>#{7*7}</code></p>
+<pre> urinib ko'ring.","retry_in":249}</pre>
+
+<p><b>Tavsiya:</b> Sandbox template.</p>
+</div><div class="detail">
+<h3><span class="badge critical">CRITICAL</span> SSTI (Server-Side Template Injection)
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>GET /</code></p>
+<p><b>CVSS:</b> 9.5 | <b>CWE:</b> CWE-1336 | <b>Module:</b> injection-ssti
+| <b>Technique:</b> <code>raw|GET|name</code></p>
+
+<p><b>Payload:</b> <code>#{7*7}</code></p>
+<pre> urinib ko'ring.","retry_in":249}</pre>
+
+<p><b>Tavsiya:</b> Sandbox template.</p>
+</div><div class="detail">
+<h3><span class="badge critical">CRITICAL</span> SSTI (Server-Side Template Injection)
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>GET /verify</code></p>
+<p><b>CVSS:</b> 9.5 | <b>CWE:</b> CWE-1336 | <b>Module:</b> injection-ssti
+| <b>Technique:</b> <code>url2|GET|q</code></p>
+
+<p><b>Payload:</b> <code>#{7*7}</code></p>
+<pre> urinib ko'ring.","retry_in":249}</pre>
+
+<p><b>Tavsiya:</b> Sandbox template.</p>
+</div><div class="detail">
+<h3><span class="badge critical">CRITICAL</span> SSTI (Server-Side Template Injection)
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>POST /demo-reset</code></p>
+<p><b>CVSS:</b> 9.5 | <b>CWE:</b> CWE-1336 | <b>Module:</b> injection-ssti
+| <b>Technique:</b> <code>raw|POST|q</code></p>
+
+<p><b>Payload:</b> <code>${7*7}</code></p>
+<pre> urinib ko'ring.","retry_in":249}</pre>
+
+<p><b>Tavsiya:</b> Sandbox template.</p>
+</div><div class="detail">
+<h3><span class="badge critical">CRITICAL</span> SSTI (Server-Side Template Injection)
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>POST /clear</code></p>
+<p><b>CVSS:</b> 9.5 | <b>CWE:</b> CWE-1336 | <b>Module:</b> injection-ssti
+| <b>Technique:</b> <code>raw|POST|q</code></p>
+
+<p><b>Payload:</b> <code>${7*7}</code></p>
+<pre> urinib ko'ring.","retry_in":249}</pre>
+
+<p><b>Tavsiya:</b> Sandbox template.</p>
+</div><div class="detail">
+<h3><span class="badge critical">CRITICAL</span> SSTI (Server-Side Template Injection)
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>POST /</code></p>
+<p><b>CVSS:</b> 9.5 | <b>CWE:</b> CWE-1336 | <b>Module:</b> injection-ssti
+| <b>Technique:</b> <code>raw|POST|q</code></p>
+
+<p><b>Payload:</b> <code>${7*7}</code></p>
+<pre> urinib ko'ring.","retry_in":249}</pre>
+
+<p><b>Tavsiya:</b> Sandbox template.</p>
+</div><div class="detail">
+<h3><span class="badge critical">CRITICAL</span> SSTI (Server-Side Template Injection)
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>POST /login</code></p>
+<p><b>CVSS:</b> 9.5 | <b>CWE:</b> CWE-1336 | <b>Module:</b> injection-ssti
+| <b>Technique:</b> <code>raw|POST|q</code></p>
+
+<p><b>Payload:</b> <code>${7*7}</code></p>
+<pre> urinib ko'ring.","retry_in":249}</pre>
+
+<p><b>Tavsiya:</b> Sandbox template.</p>
+</div><div class="detail">
+<h3><span class="badge critical">CRITICAL</span> SSTI (Server-Side Template Injection)
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>GET /bootstrap</code></p>
+<p><b>CVSS:</b> 9.5 | <b>CWE:</b> CWE-1336 | <b>Module:</b> injection-ssti
+| <b>Technique:</b> <code>url|GET|template</code></p>
+
+<p><b>Payload:</b> <code><#assign x=7*7>${x}</code></p>
+<pre> urinib ko'ring.","retry_in":149}</pre>
+
+<p><b>Tavsiya:</b> Sandbox template.</p>
+</div><div class="detail">
+<h3><span class="badge critical">CRITICAL</span> SSTI (Server-Side Template Injection)
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>GET /admin/audit</code></p>
+<p><b>CVSS:</b> 9.5 | <b>CWE:</b> CWE-1336 | <b>Module:</b> injection-ssti
+| <b>Technique:</b> <code>url|GET|name</code></p>
+
+<p><b>Payload:</b> <code><#assign x=7*7>${x}</code></p>
+<pre> urinib ko'ring.","retry_in":149}</pre>
+
+<p><b>Tavsiya:</b> Sandbox template.</p>
+</div><div class="detail">
+<h3><span class="badge critical">CRITICAL</span> SSTI (Server-Side Template Injection)
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>GET /status</code></p>
+<p><b>CVSS:</b> 9.5 | <b>CWE:</b> CWE-1336 | <b>Module:</b> injection-ssti
+| <b>Technique:</b> <code>url2|GET|name</code></p>
+
+<p><b>Payload:</b> <code><#assign x=7*7>${x}</code></p>
+<pre> urinib ko'ring.","retry_in":149}</pre>
+
+<p><b>Tavsiya:</b> Sandbox template.</p>
+</div><div class="detail">
+<h3><span class="badge critical">CRITICAL</span> SSTI (Server-Side Template Injection)
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>POST /session</code></p>
+<p><b>CVSS:</b> 9.5 | <b>CWE:</b> CWE-1336 | <b>Module:</b> injection-ssti
+| <b>Technique:</b> <code>url|POST|name</code></p>
+
+<p><b>Payload:</b> <code>%{7*7}</code></p>
+<pre> urinib ko'ring.","retry_in":149}</pre>
+
+<p><b>Tavsiya:</b> Sandbox template.</p>
+</div><div class="detail">
+<h3><span class="badge critical">CRITICAL</span> SSTI (Server-Side Template Injection)
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>POST /verify</code></p>
+<p><b>CVSS:</b> 9.5 | <b>CWE:</b> CWE-1336 | <b>Module:</b> injection-ssti
+| <b>Technique:</b> <code>raw|POST|name</code></p>
+
+<p><b>Payload:</b> <code>%{7*7}</code></p>
+<pre> urinib ko'ring.","retry_in":149}</pre>
+
+<p><b>Tavsiya:</b> Sandbox template.</p>
+</div><div class="detail">
+<h3><span class="badge critical">CRITICAL</span> SSTI (Server-Side Template Injection)
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>POST /csp-report</code></p>
+<p><b>CVSS:</b> 9.5 | <b>CWE:</b> CWE-1336 | <b>Module:</b> injection-ssti
+| <b>Technique:</b> <code>url|POST|q</code></p>
+
+<p><b>Payload:</b> <code>%{7*7}</code></p>
+<pre> urinib ko'ring.","retry_in":149}</pre>
+
+<p><b>Tavsiya:</b> Sandbox template.</p>
+</div><div class="detail">
+<h3><span class="badge critical">CRITICAL</span> SSTI (Server-Side Template Injection)
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>POST /alert</code></p>
+<p><b>CVSS:</b> 9.5 | <b>CWE:</b> CWE-1336 | <b>Module:</b> injection-ssti
+| <b>Technique:</b> <code>url2|POST|q</code></p>
+
+<p><b>Payload:</b> <code>%{7*7}</code></p>
+<pre> urinib ko'ring.","retry_in":149}</pre>
+
+<p><b>Tavsiya:</b> Sandbox template.</p>
+</div><div class="detail">
+<h3><span class="badge critical">CRITICAL</span> SSTI (Server-Side Template Injection)
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>POST /admin/enable</code></p>
+<p><b>CVSS:</b> 9.5 | <b>CWE:</b> CWE-1336 | <b>Module:</b> injection-ssti
+| <b>Technique:</b> <code>url2|POST|q</code></p>
+
+<p><b>Payload:</b> <code>%{7*7}</code></p>
+<pre> urinib ko'ring.","retry_in":149}</pre>
+
+<p><b>Tavsiya:</b> Sandbox template.</p>
+</div><div class="detail">
+<h3><span class="badge critical">CRITICAL</span> SSTI (Server-Side Template Injection)
+<span class="badge verified">high</span></h3>
+<p><b>Endpoint:</b> <code>POST /admin/disable</code></p>
+<p><b>CVSS:</b> 9.5 | <b>CWE:</b> CWE-1336 | <b>Module:</b> injection-ssti
+| <b>Technique:</b> <code>url2|POST|q</code></p>
+
+<p><b>Payload:</b> <code>%{7*7}</code></p>
+<pre> urinib ko'ring.","retry_in":149}</pre>
+
+<p><b>Tavsiya:</b> Sandbox template.</p>
+</div>
+</body></html>

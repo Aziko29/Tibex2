@@ -38,7 +38,7 @@ def _csv(rows: list[list], filename: str) -> Response:
     safe_name = filename.replace(".xlsx", ".csv")
     return Response(
         content=content.encode("utf-8"),
-        media_type="application/vnd.ms-excel; charset=utf-8",
+        media_type="text/csv; charset=utf-8",
         headers={
             "Content-Disposition": f'attachment; filename="{safe_name}"',
             "X-Content-Type-Options": "nosniff",

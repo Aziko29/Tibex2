@@ -1,7 +1,6 @@
 """Append-only audit jurnali: hash-zanjir, poyga-himoyasi va tekshiruv."""
 import hashlib
 import json
-import time
 from datetime import datetime, timezone
 
 from sqlalchemy import func, select, text
@@ -12,28 +11,67 @@ from ..realtime import publish
 ZERO_HASH = "0" * 64
 _ADVISORY_LOCK_KEY = 7_420_001_001  # audit zanjiri uchun doimiy kalit
 
-# `audit.created` eventi faqat UI'ni yangilaydi (yozuvning o'zi doim DB'ga yoziladi).
-# PHI o'qish ("view") juda ko'p bo'lgani uchun har (user, action) ga 2 s da bittadan
-# publish qilinadi; boshqa barcha action'lar (payment, update, ...) darhol publish qilinadi.
-_PUBLISH_THROTTLE_S = 2.0
-_THROTTLED_ACTIONS = frozenset({"view"})
-_PUBLISH_MAP_MAX = 1024
-_last_publish: dict[tuple[str, str], float] = {}
+# TIBEX_AUDIT_NO_WS_VIEW_v1:
+# `view` (PHI o'qish) DB'ga yoziladi (audit uchun kerak), LEKIN WebSocket'ga
+# TARQATILMAYDI. Sabab: har bir GET (bootstrap, patients list, audit list, ...)
+# `audit_view()` chaqiradi. Agar bu WS'ga chiqsa, har bootstrap → view → publish
+# → admin yana bootstrap → view → publish → ... cheksiz loop va ekran
+# pirpirashi (2 s da bir marta). Audit yozuvining o'zi DB'da qoladi.
+def _should_publish(user: str, action: str) -> bool:  # noqa: ARG001
+    return action != "view"
 
 
-def _should_publish(user: str, action: str) -> bool:
-    if action not in _THROTTLED_ACTIONS:
-        return True
-    now = time.monotonic()
-    key = (user, action)
-    last = _last_publish.get(key)
-    if last is not None and now - last < _PUBLISH_THROTTLE_S:
-        return False
-    if len(_last_publish) >= _PUBLISH_MAP_MAX:  # xotira o'smasligi uchun eskirganlarini tozalash
-        for k in [k for k, t in _last_publish.items() if now - t >= _PUBLISH_THROTTLE_S]:
-            del _last_publish[k]
-    _last_publish[key] = now
-    return True
+# TIBEX_AUDIT_PHI_REDACTION_v1: audit before_data/after_data — oddiy `sa.JSON`
+# ustunlar (SHIFRLANMAGAN). Router'lar `_to_dict(obj)` bilan butun obyektni
+# yozadi — jumladan complaint, final_dx, prescriptions, address, allergies,
+# chronic va boshqa PHI. Asl jadvalda bu maydonlar AES-GCM bilan shifrlangan,
+# lekin audit jurnalida PLAINTEXT nusxasi qolar edi. Bitta DB dump —
+# barcha PHI ochiq matnda. Yechim: kalit nomi sezgir bo'lsa, qiymatni
+# sha256-hash prefiksi bilan almashtiramiz. Audit qaysi maydon o'zgarganini
+# bilish imkoniyatini saqlab qoladi (bir xil qiymat = bir xil hash),
+# lekin haqiqiy qiymat audit jurnaliga tushmaydi. Asl qiymat asosiy jadvalda
+# shifrlangan holda qoladi.
+_AUDIT_SENSITIVE_KEYS = frozenset({
+    # Bemor
+    "phone", "phone_enc", "phone_bidx",
+    "address", "allergies", "chronic",
+    # Qabul — tibbiy
+    "complaint", "vitals",
+    "prelim_dx", "final_dx", "prescriptions", "draft", "lab_orders",
+    "cancel_reason",
+    # Lab natijalar
+    "result_data", "result_summary", "result_note",
+    # Integratsiya
+    "api_key",
+})
+
+
+def _redact_phi(value):
+    """Audit before/after_data uchun rekursiv PHI redaktsiyasi.
+
+    Sezgir kalitning qiymati bo'sh (None/''/[]/{}) bo'lsa — o'zgartirilmaydi.
+    Aks holda `[redacted:<10-belgili sha256>]` bilan almashtiriladi.
+    Bir xil qiymat har doim bir xil hash beradi, shu sabab audit yozuvida
+    qaysi maydon o'zgarganini aniqlash mumkin (eski hash != yangi hash).
+    """
+    if isinstance(value, dict):
+        out = {}
+        for k, v in value.items():
+            if k in _AUDIT_SENSITIVE_KEYS:
+                if v is None or v == "" or v == [] or v == {}:
+                    out[k] = v
+                else:
+                    try:
+                        payload = json.dumps(v, default=str, ensure_ascii=False, sort_keys=True)
+                    except Exception:
+                        payload = str(v)
+                    out[k] = "[redacted:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()[:10] + "]"
+            else:
+                out[k] = _redact_phi(v)
+        return out
+    if isinstance(value, list):
+        return [_redact_phi(x) for x in value]
+    return value
 
 
 def compute_row_hash(prev_hash: str, *, id: int, user: str, role: str, action: str,
@@ -62,6 +100,21 @@ async def log_action(
 ):
     """Audit jurnaliga yozuv qo'shadi (hash-zanjir bilan)."""
     from ..models import AuditLog
+
+    # TIBEX_AUDIT_DETAIL_LIMIT_v1: `detail` — Text ustun. Caller xato
+    # yozib 10 MB yuborsa, DB shishadi. Defensiv chegara: 2000 belgi.
+    # Hozirgi chaqiruvchilar 300 belgidan kam yozadi — ta'sir yo'q.
+    if isinstance(detail, str) and len(detail) > 2000:
+        detail = detail[:2000]
+
+    # TIBEX_AUDIT_PHI_REDACTION_v1: before_data/after_data — sa.JSON (shifrlanmagan).
+    # PHI nusxasi auditga tushmasligi uchun sezgir kalitlar qiymati hash'ga
+    # almashtiriladi. Hash hisoblash redaktsiyadan KEYIN bo'ladi, shuning uchun
+    # zanjir butunligi saqlanadi.
+    if before is not None:
+        before = _redact_phi(before)
+    if after is not None:
+        after = _redact_phi(after)
 
     is_pg = db.get_bind().dialect.name == "postgresql"
     if is_pg:

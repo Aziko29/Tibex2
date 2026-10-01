@@ -79,9 +79,14 @@ def _classify_endpoint(path: str, method: str) -> str:
     p = path.lower()
     m = method.upper()
     
-    if "/auth/login" in p or "/otp/send" in p or "/auth/change-password" in p:
+    # TIBEX_RATELIMIT_CLASSIFY_FIX_v1: avval noto'g'ri yo'llar edi —
+    # `/otp/send` (aslida `/otp/request`), `/clear-audit` (aslida `/audit/clear`)
+    # Endi barcha kritik endpointlar to'g'ri kategoriyaga tushadi.
+    if ("/auth/login" in p or "/otp/request" in p or "/otp/verify" in p
+            or "/auth/change-password" in p):
         return "auth"
-    if "/demo-reset" in p or "/admin-reset" in p or "/clear-audit" in p:
+    if ("/demo-reset" in p or "/admin-reset" in p or "/reset-password" in p
+            or "/secure-delete" in p or "/audit/clear" in p or "/shift/close" in p):
         return "critical"
     if "bulk" in p or "export" in p or "import" in p:
         return "bulk"

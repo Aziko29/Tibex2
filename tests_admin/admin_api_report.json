@@ -1,0 +1,103 @@
+{
+ "kind": "API",
+ "base": "http://127.0.0.1:8000",
+ "seconds": 73.5,
+ "counts": {
+  "PASS": 240,
+  "FAIL": 0,
+  "WARN": 0,
+  "SKIP": 0,
+  "INFO": 8
+ },
+ "meta": {
+  "slowest_get": [
+   {
+    "path": "/api/bootstrap",
+    "ms": 316
+   },
+   {
+    "path": "/api/audit/verify",
+    "ms": 179
+   },
+   {
+    "path": "/api/audit/verify",
+    "ms": 165
+   },
+   {
+    "path": "/api/audit/verify",
+    "ms": 146
+   },
+   {
+    "path": "/api/audit",
+    "ms": 141
+   }
+  ],
+  "get_p95_ms": 141
+ },
+ "items": [
+  {
+   "status": "INFO",
+   "section": "5. Eksport",
+   "name": "payments.xlsx aslida CSV (haqiqiy .xlsx emas)",
+   "detail": "",
+   "severity": "medium",
+   "ms": 0
+  },
+  {
+   "status": "INFO",
+   "section": "5. Eksport",
+   "name": "refunds.xlsx aslida CSV (haqiqiy .xlsx emas)",
+   "detail": "",
+   "severity": "medium",
+   "ms": 0
+  },
+  {
+   "status": "INFO",
+   "section": "5. Eksport",
+   "name": "appointments.xlsx aslida CSV (haqiqiy .xlsx emas)",
+   "detail": "",
+   "severity": "medium",
+   "ms": 0
+  },
+  {
+   "status": "INFO",
+   "section": "5. Eksport",
+   "name": "patients.xlsx aslida CSV (haqiqiy .xlsx emas)",
+   "detail": "",
+   "severity": "medium",
+   "ms": 0
+  },
+  {
+   "status": "INFO",
+   "section": "5. Eksport",
+   "name": "audit.xlsx aslida CSV (haqiqiy .xlsx emas)",
+   "detail": "",
+   "severity": "medium",
+   "ms": 0
+  },
+  {
+   "status": "INFO",
+   "section": "5. Eksport",
+   "name": "lab_orders.xlsx aslida CSV (haqiqiy .xlsx emas)",
+   "detail": "",
+   "severity": "medium",
+   "ms": 0
+  },
+  {
+   "status": "INFO",
+   "section": "5. Eksport",
+   "name": "debtors.xlsx aslida CSV (haqiqiy .xlsx emas)",
+   "detail": "",
+   "severity": "medium",
+   "ms": 0
+  },
+  {
+   "status": "INFO",
+   "section": "11. Salbiy loginlar (ENG OXIRDA — IP limiti ishga tushmasin)",
+   "name": "/.env va /.git tekshiruvi o'tkazilmadi (IP bloklanmasligi uchun). Yoqish: TIBEX_SCANNER_PROBES=1",
+   "detail": "",
+   "severity": "low",
+   "ms": 0
+  }
+ ]
+}

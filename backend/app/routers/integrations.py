@@ -12,10 +12,12 @@ from ..deps import (
     require_csrf,
     require_permission,
 )
+from ..integration_access import filter_for_role, serialize_integration
+from ..inventory_validation import validate_integration
 from ..models import Integration, Role, User
 from ..realtime import publish
 from ..security.audit import log_action
-from ..security.ssrf import validate_https_url
+from ..security.ssrf import check_connectivity, validate_integration_url
 
 router = APIRouter()
 
@@ -42,32 +44,26 @@ class IntegrationPatch(BaseModel):
     notes: str | None = None
 
 
-def _to_dict(i: Integration, mask_key: bool = True) -> dict:
-    """api_key ni mask qilamiz — xavfsizlik uchun. Haqiqiy kalit faqat
-    PATCH orqali yuboriladi, list/GET da hech qachon ko'rinmaydi."""
-    sms_disabled = str(i.type or "").lower() == "sms"
-    return {
-        "id": i.id,
-        "name": i.name,
-        "type": i.type,
-        "provider": i.provider,
-        "version": i.version,
-        "endpoint": i.endpoint,
-        "api_key": None if mask_key or sms_disabled else i.api_key,
-        "has_api_key": False if sms_disabled else bool(i.api_key),
-        "status": "disabled" if sms_disabled else i.status,
-        "notes": i.notes,
-        "last_sync": int(i.last_sync.timestamp() * 1000) if i.last_sync else None,
-    }
+def _to_dict(i: Integration) -> dict:
+    """Yagona serializator (bootstrap bilan bir xil). api_key hech qachon qaytmaydi."""
+    return serialize_integration(i)
+
+
+async def _check_endpoint(endpoint: str, type_: str) -> None:
+    try:
+        await validate_integration_url(endpoint, type_)
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
 
 
 @router.get("")
 async def list_integrations(
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
     _perm: Role = Depends(require_permission("integrations", "view")),
 ):
     rows = (await db.execute(select(Integration).order_by(Integration.id))).scalars().all()
-    return [_to_dict(i) for i in rows]
+    return [serialize_integration(i, user.role_key) for i in filter_for_role(rows, user.role_key)]
 
 
 @router.post("", status_code=201, dependencies=[Depends(require_csrf)])
@@ -78,23 +74,23 @@ async def create_integration(
     user: User = Depends(get_current_user),
     _perm: Role = Depends(require_permission("integrations", "create")),
 ):
-    if body.type.lower() == "sms":
+    if body.type.strip().lower() == "sms":
         raise HTTPException(status.HTTP_410_GONE, "SMS integratsiyasi o'chirilgan")
-    if body.endpoint:
-        try:
-            await validate_https_url(body.endpoint)
-        except ValueError as exc:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+    data = validate_integration(body.model_dump())
+    if data["type"] == "sms":
+        raise HTTPException(status.HTTP_410_GONE, "SMS integratsiyasi o'chirilgan")
+    if data["endpoint"]:
+        await _check_endpoint(data["endpoint"], data["type"])
 
     i = Integration(
-        name=body.name,
-        type=body.type,
-        provider=body.provider or None,
-        version=body.version or None,
-        endpoint=body.endpoint or None,
-        api_key=body.api_key or None,
-        status=body.status,
-        notes=body.notes or None,
+        name=data["name"],
+        type=data["type"],
+        provider=data["provider"] or None,
+        version=data["version"] or None,
+        endpoint=data["endpoint"] or None,
+        api_key=data["api_key"] or None,
+        status=data["status"],
+        notes=data["notes"] or None,
     )
     db.add(i)
     await db.flush()
@@ -124,14 +120,20 @@ async def update_integration(
     if i is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Integratsiya topilmadi")
 
-    data = body.model_dump(exclude_unset=True)
-    if (i.type or "").lower() == "sms" or str(data.get("type", "")).lower() == "sms":
+    raw = body.model_dump(exclude_unset=True)
+    if (i.type or "").lower() == "sms" or str(raw.get("type") or "").strip().lower() == "sms":
         raise HTTPException(status.HTTP_410_GONE, "SMS integratsiyasi o'chirilgan")
-    if "endpoint" in data and data["endpoint"]:
-        try:
-            await validate_https_url(data["endpoint"])
-        except ValueError as exc:
-            raise HTTPException(status.HTTP_400_BAD_REQUEST, str(exc)) from exc
+    data = validate_integration(raw, partial=True)
+    if "endpoint" in data or "type" in data:
+        endpoint = data["endpoint"] if "endpoint" in data else (i.endpoint or "")
+        if endpoint:
+            await _check_endpoint(endpoint, data.get("type", i.type))
+    # Bo'sh api_key = saqlangan kalitni o'chirish
+    if "api_key" in data and not data["api_key"]:
+        data["api_key"] = None
+    for key in ("provider", "version", "endpoint", "notes"):
+        if key in data and not data[key]:
+            data[key] = None
 
     before = _to_dict(i)
     for k, v in data.items():
@@ -155,22 +157,37 @@ async def sync_integration(
     user: User = Depends(get_current_user),
     _perm: Role = Depends(require_permission("integrations", "edit")),
 ):
+    """Haqiqiy ulanish tekshiruvi: tekshirilgan IP ga TCP (https bo'lsa TLS).
+    HL7 darajasidagi muloqot emas."""
     i = (
         await db.execute(select(Integration).where(Integration.id == integration_id))
     ).scalar_one_or_none()
     if i is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Integratsiya topilmadi")
-    i.last_sync = datetime.now(timezone.utc)
-    i.status = "connected"
+    if (i.type or "").lower() == "sms":
+        raise HTTPException(status.HTTP_410_GONE, "SMS integratsiyasi o'chirilgan")
+
+    if not i.endpoint:
+        ok, reason = False, "Endpoint ko'rsatilmagan"
+    else:
+        ok, reason = await check_connectivity(i.endpoint, i.type)
+    if ok:
+        i.last_sync = datetime.now(timezone.utc)
+        i.status = "connected"
+    else:
+        i.status = "error"
     await db.flush()
     after = _to_dict(i)
     await log_action(
         db, user=user.fullname, role=user.role_key, action="update",
-        detail=f"Integratsiya sinxronlandi: {i.name}",
+        detail=(
+            f"Integratsiya sinxronlandi: {i.name}" if ok
+            else f"Integratsiya ulanishi muvaffaqiyatsiz: {i.name} — {reason}"
+        ),
         ip=client_ip(request), after=after,
     )
     await publish("integration.updated", after)
-    return after
+    return {**after, "sync_ok": ok, "sync_error": reason}
 
 
 @router.delete("/{integration_id}", status_code=204, dependencies=[Depends(require_csrf)])

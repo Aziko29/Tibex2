@@ -10,9 +10,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..config import get_settings
 from ..db import get_db
 from .. import __version__
 from ..deps import get_current_user, require_permission, require_csrf
+from ..integration_access import filter_for_role, serialize_integration
 from ..models import AuditLog, Integration, Role, Session as DBSession, User
 from ..redis_client import get_redis
 from ..realtime import manager, publish
@@ -144,10 +146,12 @@ async def health_detail(
         result["sessions"]["active"] = active
 
         total_users = (await db.execute(
-            select(func.count()).select_from(User)
+            select(func.count()).select_from(User).where(User.role_key != "patient")
         )).scalar() or 0
         active_users = (await db.execute(
-            select(func.count()).select_from(User).where(User.active == True)  # noqa
+            select(func.count()).select_from(User).where(
+                User.active == True, User.role_key != "patient"  # noqa
+            )
         )).scalar() or 0
         result["users"] = {"total": total_users, "active": active_users}
     except Exception:
@@ -164,6 +168,7 @@ async def health_detail(
 
     # TIBEX_FIX: sysVersion ko'rsatishi uchun
     result["version"] = __version__
+    result["env"] = "prod" if get_settings().is_prod else "dev"
     return result
 
 
@@ -244,9 +249,13 @@ async def integration_health(
     _perm: Role = Depends(require_permission("integrations", "view")),
 ):
     """Barcha integratsiyalar holati."""
-    rows = (await db.execute(select(Integration))).scalars().all()
+    rows = filter_for_role(
+        (await db.execute(select(Integration).order_by(Integration.id))).scalars().all(),
+        user.role_key,
+    )
     items = []
     for i in rows:
+        i_status = serialize_integration(i, user.role_key)["status"]
         last = i.last_sync
         if last and last.tzinfo is None:
             last = last.replace(tzinfo=timezone.utc)
@@ -258,9 +267,9 @@ async def integration_health(
             "name": i.name,
             "type": i.type,
             "provider": i.provider,
-            "status": i.status,
+            "status": i_status,
             "last_sync_hours_ago": hours_ago,
-            "healthy": i.status == "connected" and (hours_ago is None or hours_ago < 24),
+            "healthy": i_status == "connected" and (hours_ago is None or hours_ago < 24),
         })
     return {"count": len(items), "items": items}
 

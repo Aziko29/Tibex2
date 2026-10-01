@@ -50,7 +50,7 @@ async def cmd_set(domain: str) -> int:
     payload = {
         "url": webhook_url,
         "secret_token": secret,
-        "allowed_updates": ["message", "edited_message"],
+        "allowed_updates": ["message"],
         "drop_pending_updates": True,
     }
 

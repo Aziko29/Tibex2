@@ -241,9 +241,9 @@ def test_compose_nginx_and_systemd_use_host_loopback_only():
     compose = (backend / "docker-compose.yml").read_text(encoding="utf-8")
     nginx = (backend / "deploy" / "nginx.conf").read_text(encoding="utf-8")
     service = (backend / "deploy" / "tibex.service").read_text(encoding="utf-8")
-    assert "network_mode: host" in compose
-    assert '"127.0.0.1:6379:6379"' in compose
-    assert "host.docker.internal" not in compose
+    assert '"127.0.0.1:8000:8000"' in compose and '"127.0.0.1:6379:6379"' in compose
+    assert "host.docker.internal:host-gateway" in compose
+    assert "-b 0.0.0.0:8000" in (backend / "Dockerfile").read_text(encoding="utf-8")
     assert "proxy_set_header X-Forwarded-For $remote_addr;" in nginx
     assert "rate=10r/m" in nginx and "rate=20r/s" in nginx
     assert "--forwarded-allow-ips=127.0.0.1" in service

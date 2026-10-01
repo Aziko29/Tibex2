@@ -13,7 +13,7 @@ from ..deps import (
     require_csrf,
     require_permission,
 )
-from ..models import Role, Session as DBSession, User
+from ..models import Doctor, Role, Session as DBSession, User
 from sqlalchemy import delete as sa_delete
 from ..realtime import publish
 from ..security.audit import log_action
@@ -129,6 +129,21 @@ async def _check_delete_protection(
             )
 
 
+async def _assert_other_active_admin(db: AsyncSession, target: User, message: str) -> None:
+    """Oxirgi aktiv adminni bloklash/rolini almashtirishga yo'l qo'ymaydi."""
+    if target.role_key != "admin" or not target.active:
+        return
+    count = (await db.execute(
+        select(func.count()).select_from(User).where(
+            User.role_key == "admin",
+            User.active == True,  # noqa: E712
+            User.id != target.id,
+        )
+    )).scalar() or 0
+    if count == 0:
+        raise HTTPException(_status.HTTP_400_BAD_REQUEST, message)
+
+
 class UserIn(BaseModel):
     fullname: str = Field(..., min_length=1, max_length=200)
     login: str = Field(..., min_length=2, max_length=64)
@@ -137,6 +152,10 @@ class UserIn(BaseModel):
     phone: str | None = ""
     doctor_id: int | None = None
     active: bool = True
+    # Rol = doctor bo'lsa: shifokor kartochkasi (Doctor) ham shu bilan yaratiladi
+    specialty: str | None = Field(default=None, max_length=128)
+    room: str | None = Field(default=None, max_length=32)
+    price: int = Field(default=0, ge=0)
 
     @field_validator("fullname")
     @classmethod
@@ -158,6 +177,7 @@ class UserPatch(BaseModel):
     role: str | None = None
     phone: str | None = None
     doctor_id: int | None = None
+    specialty: str | None = Field(default=None, max_length=200)
     active: bool | None = None
 
     @field_validator("fullname")
@@ -180,12 +200,27 @@ def _clean_phone(value: str | None) -> str | None:
     if value is None or not value.strip():
         return None
     value = value.strip()
+    # Faqat mamlakat kodi ("+998") — telefon kiritilmagan hisoblanadi
+    if re.sub(r"\D", "", value) in ("", "998"):
+        return None
     if not re.fullmatch(r"\+?[0-9 ()().-]{7,32}", value):
         raise ValueError("Telefon raqam formati noto'g'ri")
     digits = re.sub(r"\D", "", value)
     if not 7 <= len(digits) <= 15:
         raise ValueError("Telefon raqam 7–15 ta raqamdan iborat bo'lishi kerak")
     return ("+" if value.startswith("+") else "") + digits
+
+
+PATIENT_ROLE_KEY = "patient"
+
+
+def _assert_not_patient_role(role_key: str | None) -> None:
+    """Bemor roli Xodimlar orqali berilmaydi: bemor akkauntlari 'Bemorlar' bo'limida yaratiladi."""
+    if role_key == PATIENT_ROLE_KEY:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            "Bemor rolini Xodimlar orqali berib bo'lmaydi — bemor akkaunti \"Bemorlar\" bo'limida yaratiladi",
+        )
 
 
 def _assert_role_assignable(actor: User, role: Role, actor_permissions: list[str] | str) -> None:
@@ -221,7 +256,13 @@ async def list_users(
     db: AsyncSession = Depends(get_db),
     _perm: Role = Depends(require_permission("users", "view")),
 ):
-    rows = (await db.execute(select(User).order_by(User.id))).scalars().all()
+    # Xodimlar ro'yxati faqat xodim rollarini o'z ichiga oladi. Bemor portal akkauntlari
+    # (role_key == "patient") "Bemorlar" bo'limiga tegishli va bu yerga aralashmaydi.
+    rows = (
+        await db.execute(
+            select(User).where(User.role_key != PATIENT_ROLE_KEY).order_by(User.id)
+        )
+    ).scalars().all()
     return [_to_dict(u) for u in rows]
 
 
@@ -234,6 +275,7 @@ async def create_user(
     _perm: Role = Depends(require_permission("users", "create")),
 ):
     # TIBEX_ROLE_FORTRESS_v1: rol shabloni majburiy
+    _assert_not_patient_role(body.role)
     # ─── Rol mavjud va aktiv bo'lishi shart ───
     role_obj = (
         await db.execute(select(Role).where(Role.key == body.role))
@@ -272,7 +314,9 @@ async def create_user(
         )
 
     # ─── Parol kuchini tekshirish ───
-    strength_ok, strength_msg = check_password_strength(body.password)
+    strength_ok, strength_msg = check_password_strength(
+        body.password, login=login_clean, fullname=body.fullname
+    )
     if not strength_ok:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, strength_msg)
 
@@ -286,13 +330,48 @@ async def create_user(
             f"Bu login band: {existing.fullname}",
         )
 
+    # ─── Shifokor roli: Doctor kartochkasini yaratib, akkauntga bog'lash ───
+    doctor_id = body.doctor_id
+    new_doctor = None
+    if body.role == "doctor" and doctor_id is None:
+        specialty = (body.specialty or "").strip()
+        if not specialty:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                "Shifokor uchun mutaxassislik majburiy",
+            )
+        new_doctor = Doctor(
+            name=body.fullname.strip(),
+            specialty=specialty,
+            phone=body.phone or None,
+            price=body.price,
+            room=(body.room or "").strip() or None,
+            active=body.active,
+        )
+        db.add(new_doctor)
+        await db.flush()
+        doctor_id = new_doctor.id
+
+    # TIBEX_DOCTOR_ID_FK_FIX_v1: User.doctor_id — oddiy BigInteger (FK constraint yo'q).
+    # Shu sabab yaroqsiz doctor_id jimgina yozib qo'yilardi. `update_user` buni
+    # tekshiradi, lekin `create_user` tekshirmas edi. Endi bu yerda ham tekshiramiz.
+    if doctor_id is not None:
+        _card = (await db.execute(
+            select(Doctor).where(Doctor.id == doctor_id)
+        )).scalar_one_or_none()
+        if _card is None:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                f"Shifokor kartochkasi topilmadi (id={doctor_id})",
+            )
+
     u = User(
         fullname=body.fullname.strip(),
         login=login_clean,
         password_hash=await hash_password_async(body.password),
         role_key=body.role,
         phone=body.phone,
-        doctor_id=body.doctor_id,
+        doctor_id=doctor_id,
         active=body.active,
     )
     db.add(u)
@@ -310,6 +389,19 @@ async def create_user(
         after=after,
     )
     await publish("user.created", after)
+    if new_doctor is not None:
+        await publish(
+            "doctor.created",
+            {
+                "id": new_doctor.id,
+                "name": new_doctor.name,
+                "specialty": new_doctor.specialty,
+                "phone": new_doctor.phone,
+                "price": new_doctor.price,
+                "room": new_doctor.room,
+                "active": new_doctor.active,
+            },
+        )
     return after
 
 
@@ -339,21 +431,34 @@ async def update_user(
                 "O'z rolingizni o'zgartira olmaysiz",
             )
 
+    if data.get("active") is False and u.active:
+        if actor.id == u.id:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "O'zingizni bloklay olmaysiz")
+        await _assert_other_active_admin(db, u, "Oxirgi aktiv adminni bloklash mumkin emas")
+    if "role" in data and data["role"] != u.role_key:
+        await _assert_other_active_admin(db, u, "Oxirgi aktiv adminning rolini o'zgartirib bo'lmaydi")
+
     before = _to_dict(u)
     revoked_jtis: list[str] = []
+    role_changed_to_doctor = False
+    specialty = (data.pop("specialty", None) or "").strip()
 
     if "password" in data:
         pw = data.pop("password")
         if pw:
-            strength_ok, strength_msg = check_password_strength(pw)
+            strength_ok, strength_msg = check_password_strength(
+                pw, login=u.login, fullname=data.get("fullname") or u.fullname
+            )
             if not strength_ok:
                 raise HTTPException(status.HTTP_400_BAD_REQUEST, strength_msg)
             u.password_hash = await hash_password_async(pw)
+            u.password_changed_at = datetime.now(timezone.utc)
             u.session_valid_after = datetime.now(timezone.utc)
             revoked_jtis.extend(await _delete_user_sessions(db, user_id))
 
     if "role" in data:
         # TIBEX_ROLE_FORTRESS_v1: rol tekshiruvi
+        _assert_not_patient_role(data["role"])
         role = (
             await db.execute(select(Role).where(Role.key == data["role"]))
         ).scalar_one_or_none()
@@ -372,12 +477,50 @@ async def update_user(
                 "Admin rolini faqat superadmin bera oladi",
             )
         old_role = u.role_key
+        role_changed_to_doctor = data["role"] == "doctor" and old_role != "doctor"
         u.role_key = data.pop("role")
         # Rol o'zgarsa — sessiyalarni bekor qilish (yangi ruxsatlar bilan qayta kirish)
         if old_role != u.role_key:
             u.session_valid_after = datetime.now(timezone.utc)
             # Eski sessiyalarni ham o'chirish
             revoked_jtis.extend(await _delete_user_sessions(db, user_id))
+
+    # ─── Shifokor roli: kartochka majburiy, bitta kartochka — bitta akkaunt ───
+    if u.role_key == "doctor" and (role_changed_to_doctor or "doctor_id" in data or specialty):
+        new_did = data.get("doctor_id", u.doctor_id)
+        if new_did is None:
+            if not specialty:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    "Shifokor uchun mutaxassislik majburiy",
+                )
+            card = Doctor(
+                name=(data.get("fullname") or u.fullname).strip(),
+                specialty=specialty,
+                phone=data.get("phone", u.phone) or None,
+                active=data.get("active", u.active),
+            )
+            db.add(card)
+            await db.flush()
+            data["doctor_id"] = card.id
+        else:
+            card = (
+                await db.execute(select(Doctor).where(Doctor.id == new_did))
+            ).scalar_one_or_none()
+            if card is None:
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST, "Shifokor kartochkasi topilmadi"
+                )
+            taken = (
+                await db.execute(
+                    select(User.id).where(User.doctor_id == new_did, User.id != u.id)
+                )
+            ).first()
+            if taken is not None:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    "Bu kartochka boshqa xodimga bog'langan",
+                )
 
     for k, v in data.items():
         setattr(u, k, v)
@@ -490,8 +633,8 @@ async def admin_reset_password(
                 "Boshqa adminning parolini faqat superadmin reset qila oladi",
             )
 
-    # 12 belgili tasodifiy parol
-    new_pwd = generate_random_password(12)
+    # 16 belgili tasodifiy parol (CSPRNG, adashtiriladigan belgilarsiz)
+    new_pwd = generate_random_password(16)
     u.password_hash = await hash_password_async(new_pwd)
     u.password_changed_at = datetime.now(timezone.utc)
     u.session_valid_after = datetime.now(timezone.utc)  # Barcha sessiyalarni bekor qilish
@@ -577,7 +720,9 @@ async def reset_password_alias(
     ok, _ = await verify_password_async(actor.password_hash, body.current_password)
     if not ok:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Joriy parolingiz xato")
-    strength_ok, strength_msg = check_password_strength(body.new_password)
+    strength_ok, strength_msg = check_password_strength(
+        body.new_password, login=u.login, fullname=u.fullname
+    )
     if not strength_ok:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, strength_msg)
     await _check_user_modification(db, actor, u)

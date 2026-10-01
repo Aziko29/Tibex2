@@ -1,0 +1,7 @@
+TIBEX admin yuqori panel - ozgarishlar
+1. static/js/admin.5f11922d.js (eski c79164fc): bildirishnoma/real-time xatosi tuzatildi, badge hisoblagich, yangi hodisalar royxati, Live belgisi haqiqiy WS holati, F4/F10 ruxsat tekshiruvi, yordam oynasi.
+2. static/css/admin.eb0b94e9.css (eski a4fe1b66): topbar v2 - hamburger faqat mobilda, ikon 38px/20px, tun rejimi chegarasi.
+3. static/tibex-console-theme.js: SVG ikon, tema tugmasi Chiqishdan oldin.
+4. static/tibex-client.js (+public nusxasi): tibex:ws hodisasi va wsOpen().
+5. admin.html: SVG ikonlar, aria-label, yangi hash havolalari.
+Eslatma: .git va node_modules zipga kiritilmagan.

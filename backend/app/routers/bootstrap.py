@@ -2,12 +2,13 @@
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Request
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import get_settings
 from ..db import get_db
 from ..deps import get_current_role, get_current_session, get_current_user
+from ..integration_access import filter_for_role, serialize_integration
 from ..security.rbac import has_permission
 from ..security.audit import audit_view
 from ..models import (
@@ -71,6 +72,9 @@ def _appointment_dict(a: Appointment) -> dict:
         "completed_at": int(a.completed_at.timestamp() * 1000) if a.completed_at else None,
         "completed_by": a.completed_by,
         "created_at": int(a.created_at.timestamp() * 1000) if a.created_at else None,
+        "arrived_at": int(a.arrived_at.timestamp() * 1000) if a.arrived_at else None,
+        "status_changed_at": int(a.status_changed_at.timestamp() * 1000) if a.status_changed_at else None,
+        "cancel_reason": a.cancel_reason,
     }
 
 
@@ -220,20 +224,9 @@ def _reagent_dict(r: Reagent) -> dict:
     }
 
 
-def _integration_dict(i: Integration, mask_key: bool = True) -> dict:
-    return {
-        "id": i.id,
-        "name": i.name,
-        "type": i.type,
-        "provider": i.provider,
-        "version": i.version,
-        "endpoint": i.endpoint,
-        "api_key": None if mask_key else i.api_key,
-        "has_api_key": bool(i.api_key),
-        "status": i.status,
-        "notes": i.notes,
-        "last_sync": int(i.last_sync.timestamp() * 1000) if i.last_sync else None,
-    }
+def _integration_dict(i: Integration, role_key: str | None = None) -> dict:
+    # /api/integrations bilan bir xil serializator (holat va maskalash farq qilmaydi).
+    return serialize_integration(i, role_key)
 
 
 async def _system_info_dict(db: AsyncSession) -> dict:
@@ -456,7 +449,23 @@ async def _bootstrap_staff(
     }
 
     since = datetime.now(timezone.utc) - timedelta(days=s.bootstrap_patient_days)
-    patient_stmt = select(Patient).where(Patient.created_at >= since).order_by(Patient.id.desc()).limit(1000)
+    # Yangi bemorlar + yaqinda/kelajakda qabuli bor bemorlar. Aks holda 30 kundan
+    # eski bemorning bugungi navbati qabulxona/shifokor ekranida ko'rinmay qolardi
+    # (bemor keshda yo'q -> qator yashiriladi).
+    since_date = since.date().isoformat()
+    patient_stmt = (
+        select(Patient)
+        .where(
+            or_(
+                Patient.created_at >= since,
+                Patient.id.in_(
+                    select(Appointment.patient_id).where(Appointment.date >= since_date)
+                ),
+            )
+        )
+        .order_by(Patient.id.desc())
+        .limit(1000)
+    )
     if not can_patients:
         patient_stmt = patient_stmt.where(Patient.id == -1)
     elif user.role_key == "doctor":
@@ -526,8 +535,20 @@ async def _bootstrap_staff(
         else []
     )
 
-    users = (await db.execute(select(User))).scalars().all() if can_users else []
+    # Xodimlar bo'limi faqat xodim rollarini oladi; bemor portal akkauntlari bu yerga kirmaydi.
+    users = (
+        (await db.execute(select(User).where(User.role_key != "patient"))).scalars().all()
+        if can_users
+        else []
+    )
     doctors = (await db.execute(select(Doctor))).scalars().all() if can_doctors else []
+    # Shifokorning o'z profili (mutaxassislik, xona, narx): doctors.view ruxsatisiz ham,
+    # faqat o'ziga bog'langan yozuv — real-time profil yangilanishi uchun.
+    own_doctor = None
+    if user.doctor_id:
+        own_doctor = (
+            await db.execute(select(Doctor).where(Doctor.id == user.doctor_id))
+        ).scalar_one_or_none()
     services = (await db.execute(select(Service))).scalars().all() if can_services else []
     # Ruxsati roles.view bo'lmagan xodim ham o'zining haqiqiy permission
     # snapshotini front-end guardlari uchun olishi kerak; boshqa rollar berilmaydi.
@@ -535,7 +556,10 @@ async def _bootstrap_staff(
     equipment = (await db.execute(select(Equipment))).scalars().all() if can_equipment else []
     reagents = (await db.execute(select(Reagent))).scalars().all() if can_reagents else []
     integrations = (
-        (await db.execute(select(Integration))).scalars().all()
+        filter_for_role(
+            (await db.execute(select(Integration).order_by(Integration.id))).scalars().all(),
+            user.role_key,
+        )
         if can_integrations
         else []
     )
@@ -573,11 +597,12 @@ async def _bootstrap_staff(
             "refunds": [_refund_dict(r) for r in refunds],
             "users": [_user_dict(u) for u in users],
             "doctors": [_doctor_dict(d) for d in doctors],
+            "doctor_profile": _doctor_dict(own_doctor) if own_doctor else None,
             "services": [_service_dict(s_) for s_ in services],
             "roles": [_role_dict(r) for r in roles],
             "equipment": [_equipment_dict(e) for e in equipment],
             "reagents": [_reagent_dict(r) for r in reagents],
-            "integrations": [_integration_dict(i) for i in integrations],
+            "integrations": [_integration_dict(i, user.role_key) for i in integrations],
             "shift": _shift_dict(shift),
             "audit": [_audit_dict(a) for a in audit],
         },

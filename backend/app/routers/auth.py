@@ -54,7 +54,9 @@ async def login(
     login_tag = hashlib.sha256(login_name.encode("utf-8")).hexdigest()
     await hit(f"rl:login:ipuser:{ip}:{login_tag}", limit=5, window=900)
     observations = await observe(f"rl:login:observe:{login_tag}", window=3600)
-    if observations == 100:
+    # TIBEX_LOGIN_ALERT_THRESHOLD_v1: avval faqat ANIQ 100 da ishlardi.
+    # 99 va 101 hech qanday signal bermasdi. Endi bir necha chegarada ishlaydi.
+    if observations in (50, 100, 200, 500):
         from .monitoring import record_alert
         record_alert(
             level="warn",
@@ -243,7 +245,9 @@ async def change_password(
         )
 
     # Kuchlilik tekshiruvi
-    strength_ok, strength_msg = check_password_strength(body.new_password)
+    strength_ok, strength_msg = check_password_strength(
+        body.new_password, login=user.login, fullname=user.fullname
+    )
     if not strength_ok:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, strength_msg)
 

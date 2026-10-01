@@ -15,6 +15,21 @@ ishga tushiradi.
 Frontend alohida Nginx/static host orqali xizmat qiladi. Production'da
 `TIBEX_SERVE_FRONTEND` o'chirilgan bo'lishi shart.
 
+### Local-only rejimi (TIBEX_LOCAL_ONLY_ENABLED)
+
+Default: `true` — ilova faqat local klient IP'laridan (loopback, RFC1918,
+CGNAT, ULA, link-local) foydalanish mumkin. `/api/health` va
+`/api/telegram/webhook` har doim ochiq. Non-local HTTP 404, WebSocket 4404.
+
+Cloudflare Tunnel holatida: cloudflared har bir so'rovga
+`Cf-Connecting-Ip: <klient-haqiqiy-IP>` qo'shadi. `TIBEX_LOCAL_ONLY_ENABLED=true`
+bo'lsa, `tibex.uz`ga internetdan kiradigan klientlar (shu jumladan siz
+o'zingiz ham) 404 oladi. Ayni paytdagi deploy uchun `.env.public` da
+`TIBEX_LOCAL_ONLY_ENABLED=false` — kod tayyor turadi, kelajakda bir satr
+bilan yoqiladi.
+
+Batafsil: `docs/LOCAL_ONLY.md`.
+
 ## Qo'lda ishga tushirish (Docker'siz, ishlab chiqish uchun)
     python -m venv .venv
     .venv\Scripts\activate    # Windows
@@ -33,7 +48,7 @@ Bu usulda frontend backenddan alohida serve qilinadi — qarang:
 `frontend/README.md`.
 
 ## Hujjatlar
-[SECURITY](docs/SECURITY.md) · [OPERATIONS](docs/OPERATIONS.md) · [ROTATION](docs/ROTATION.md) · [BACKUP](docs/BACKUP.md) · [Deploy](deploy/DEPLOY-VARIANT-B.md)
+[SECURITY](docs/SECURITY.md) · [LOCAL_ONLY](docs/LOCAL_ONLY.md) · [OPERATIONS](docs/OPERATIONS.md) · [ROTATION](docs/ROTATION.md) · [BACKUP](docs/BACKUP.md) · [Deploy](deploy/DEPLOY-VARIANT-B.md)
 
 ## Testlar
 CI: `.github/workflows/ci.yml` (Postgres+Redis servislari bilan). Lokal: `pytest -q`. DB talab qiladigan testlar uchun `TIBEX_DATABASE_URL` test bazasiga qaratilsin (haqiqiy `.env` ishlatilmaydi).
@@ -98,8 +113,3 @@ Backend katalogida dev dependencylar o'rnatilgan muhitdan ishga tushiring:
 
 ```powershell
 python -m scripts.clinic_simulation --report ..\..\..\..\outputs\BIT2-clinic-simulation-report.json
-```
-
-Skript lokal regression/security testlarini va Alembic revision graph'ini tekshiradi. `--api` qo'shimchasi faqat loopback manzilga read-only HTTP so'rovlar yuboradi; health endpoint DB'ga `SELECT` qilgani sabab buning uchun `--confirm-isolated-db` ham talab qilinadi. `TIBEX_ENV` `local` yoki `test` bo'lmasa API probe yuborilmaydi. Skript demo reset qilmaydi, klinik yozuvlar yaratmaydi, SMS/Telegram/to'lov provayderlariga ulanmaydi.
-
-Xodim, bemor, qabul, to'lov, refund va laboratoriya jarayonlarining to'liq UI end-to-end ssenariysi hozircha qo'lda, faqat ajratilgan test DB bilan bajariladi; skript hisobotida bular avtomatlashtirilmagan deb ko'rsatiladi.

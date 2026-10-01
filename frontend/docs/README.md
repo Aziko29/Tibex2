@@ -15,7 +15,6 @@
 4. `tibex-password.js` - Parol boshqaruvi
 5. `tibex-settings.js` - Sozlamalar
 6. `tibex-notifications.js` - Bildirishnomalar
-7. `tibex-fortress.js` - Monitoring
 
 ## CSP va `esc()` qoidasi
 - Nginx **enforcing** CSP yuboradi: inline `<script>` va `on*=` handlerlar **taqiqlangan** — `addEventListener` / `data-action` delegation ishlating. Inline `style=""` faqat `style-src-attr` orqali ruxsat.

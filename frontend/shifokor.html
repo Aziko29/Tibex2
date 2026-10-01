@@ -15,11 +15,17 @@
 <script src="static/tibex-console-theme.js"></script>
 <script src="static/tibex-notifications.js"></script>
 <script src="static/tibex-realtime-pro.js"></script>
+<script src="static/tibex-dom-patch.js"></script>
 <!-- TIBEX_DOCTOR_CLEANUP_v1: fortress olib tashlandi (faqat admin) -->
 
-<link rel="stylesheet" href="static/css/tibex-base.css">
-  <link rel="stylesheet" href="static/css/doctor.dcf51a8d.css">
-<link rel="stylesheet" href="static/css/tibex-console.css">
+<link rel="stylesheet" href="static/css/tibex-base.873e7ecc.css">
+  <link rel="stylesheet" href="static/css/doctor.4eebb687.css">
+<link rel="stylesheet" href="static/css/tibex-console.acccabb6.css">
+<link rel="stylesheet" href="static/css/tibex-session.67c519b3.css">
+<link rel="stylesheet" href="static/css/tibex-password.7fa1c8f6.css">
+<link rel="stylesheet" href="static/css/tibex-settings.d1f62816.css">
+<link rel="stylesheet" href="static/css/tibex-notifications.c3b2eefe.css">
+<link rel="stylesheet" href="static/css/tibex-realtime-pro.a3bdd580.css">
 </head>
 <body>
 
@@ -31,8 +37,8 @@
   <div class="stat-chip"><span>Yakun:</span><b id="statDone">0</b></div>
   <div class="sync-status" id="syncStatus"><span class="dot"></span><span>Live</span></div>
   <div class="spacer"></div>
-  <button class="icon-btn" id="btnHelp" title="Yordam (F1)">?</button>
-  <button class="icon-btn" title="Chiqish">🚪</button>
+  <button class="icon-btn" id="btnHelp" type="button" title="Yordam (F1)" aria-label="Yordam">?</button>
+  <button class="icon-btn" id="btnLogout" type="button" title="Chiqish" aria-label="Chiqish">🚪</button>
 </div>
 
 <div class="tabs-bar">
@@ -77,6 +83,7 @@
         <div>
           <div class="fw-700 fs-13" id="sbUserName">—</div>
           <div class="fs-11 text-muted" id="sbUserRole">—</div>
+          <div class="fs-11 text-muted" id="sbUserMeta" hidden></div>
         </div>
       </div>
     </div>
@@ -321,6 +328,6 @@
 
 <script src="static/tibex-safe-bind.js"></script>
 <script src="static/tibex-role-refresh.js"></script>
-  <script src="static/js/doctor.60f58605.js"></script>
+  <script src="static/js/doctor.a68f0dbc.js"></script>
 </body>
 </html>

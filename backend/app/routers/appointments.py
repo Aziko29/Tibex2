@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,7 +12,7 @@ from ..deps import (
     require_csrf,
     require_permission,
 )
-from ..models import Appointment, LabOrder, Role, Service, User
+from ..models import Appointment, Doctor, LabOrder, Patient, Role, Service, User
 from ..realtime import publish
 from ..security.anti_idor import require_appointment_access
 from ..security.rbac import has_permission
@@ -44,6 +44,31 @@ class AppointmentIn(BaseModel):
     debt: int = 0
     complaint: str | None = None
 
+    # TIBEX_APPT_FORMAT_VALIDATION_v1: avval `scheduled_time` va `date`
+    # hech qanday format tekshiruvisiz saqlanardi — "99:99" yoki
+    # "garbage" DB'ga tushib, keyingi so'rovlarni buzardi.
+    @field_validator("scheduled_time")
+    @classmethod
+    def _check_scheduled_time(cls, v: str) -> str:
+        import re
+        v = (v or "").strip()
+        if not re.fullmatch(r"([01]?\d|2[0-3]):[0-5]\d", v):
+            raise ValueError("scheduled_time 'HH:MM' formatida bo'lishi kerak")
+        # Kunlik vaqtni bir xil ko'rinishga keltiramiz: "9:00" -> "09:00"
+        hh, mm = v.split(":")
+        return f"{int(hh):02d}:{mm}"
+
+    @field_validator("date")
+    @classmethod
+    def _check_date(cls, v: str) -> str:
+        from datetime import date as _date
+        v = (v or "").strip()
+        try:
+            _date.fromisoformat(v)
+        except ValueError:
+            raise ValueError("date 'YYYY-MM-DD' formatida bo'lishi kerak") from None
+        return v
+
 
 class AppointmentPatch(BaseModel):
     status: str | None = None
@@ -52,6 +77,7 @@ class AppointmentPatch(BaseModel):
     debt: int | None = None
     payment_method: str | None = None
     complaint: str | None = None
+    cancel_reason: str | None = Field(default=None, max_length=500)
     vitals: dict | None = None
     prelim_dx: str | None = None
     final_dx: str | None = None
@@ -80,6 +106,9 @@ def _to_dict(a: Appointment, user: User | None = None) -> dict:
         "completed_at": int(a.completed_at.timestamp() * 1000) if a.completed_at else None,
         "completed_by": a.completed_by,
         "created_at": int(a.created_at.timestamp() * 1000) if a.created_at else None,
+        "arrived_at": int(a.arrived_at.timestamp() * 1000) if a.arrived_at else None,
+        "status_changed_at": int(a.status_changed_at.timestamp() * 1000) if a.status_changed_at else None,
+        "cancel_reason": a.cancel_reason,
     }
     _MEDICAL_ROLES = {"admin", "superadmin", "doctor", "lab", "patient"}
     if user is None or user.role_key in _MEDICAL_ROLES:
@@ -163,6 +192,48 @@ async def create_appointment(
         if service is None:
             raise HTTPException(status.HTTP_400_BAD_REQUEST, "Noma'lum xizmat kodi")
 
+    # TIBEX_APPT_FK_CHECK_v1: bemor va shifokor MAVJUDLIGINI tekshirish.
+    # Avval bu yo'q edi: yaroqsiz `patient_id` yoki `doctor_id` bilan FK
+    # constraint buzilib, foydalanuvchi 500 olardi va log'da "Internal Server Error"
+    # yozilardi. Endi to'g'ri 404 qaytaramiz.
+    _patient_exists = (
+        await db.execute(select(Patient.id).where(Patient.id == body.patient_id))
+    ).scalar_one_or_none()
+    if _patient_exists is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND,
+            f"Bemor topilmadi (id={body.patient_id})",
+        )
+    if body.doctor_id is not None:
+        _doctor_exists = (
+            await db.execute(select(Doctor.id).where(Doctor.id == body.doctor_id))
+        ).scalar_one_or_none()
+        if _doctor_exists is None:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND,
+                f"Shifokor topilmadi (id={body.doctor_id})",
+            )
+
+    # Bir shifokorga bir vaqtga ikki navbat yozilmasin (ikki qabulxona xodimi
+    # bir vaqtda band qilsa ham). Shifokor qatori qulflanadi — so'rovlar ketma-ket.
+    if body.doctor_id is not None:
+        await db.execute(select(Doctor.id).where(Doctor.id == body.doctor_id).with_for_update())
+        clash = (
+            await db.execute(
+                select(Appointment.id).where(
+                    Appointment.doctor_id == body.doctor_id,
+                    Appointment.date == body.date,
+                    Appointment.scheduled_time == body.scheduled_time,
+                    Appointment.status.notin_(("cancelled", "no_show")),
+                )
+            )
+        ).first()
+        if clash is not None:
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                f"Bu vaqt ({body.scheduled_time}) shifokor uchun band. Boshqa vaqt tanlang",
+            )
+
     a = Appointment(
         patient_id=body.patient_id,
         doctor_id=body.doctor_id,
@@ -180,6 +251,7 @@ async def create_appointment(
         complaint=body.complaint,
         prescriptions=[],
         lab_orders=[],
+        status_changed_at=datetime.now(timezone.utc),
     )
     db.add(a)
     await db.flush()
@@ -253,6 +325,15 @@ async def update_appointment(
     # ─── STATE MACHINE: status o'tish tekshiruvi ───
     if "status" in data and data["status"] and data["status"] != a.status:
         target = data["status"]
+        # Qabulxona: bekor/kelmadi sababi majburiy (kamida 3 belgi)
+        if target in ("cancelled", "no_show") and user.role_key == "reception":
+            reason = (data.get("cancel_reason") or "").strip()
+            if len(reason) < 3:
+                raise HTTPException(
+                    status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    "Sabab kamida 3 belgidan iborat bo'lsin",
+                )
+            data["cancel_reason"] = reason
         # Yakuniy holatdan o'zgartirish mumkin emas
         if is_final_appointment_status(a.status):
             raise HTTPException(
@@ -279,6 +360,10 @@ async def update_appointment(
         if target == "completed" and a.completed_at is None:
             a.completed_at = datetime.now(timezone.utc)
             a.completed_by = user.fullname
+        now = datetime.now(timezone.utc)
+        if target == "arrived" and a.arrived_at is None:
+            a.arrived_at = now
+        a.status_changed_at = now
         a.status = target
         del data["status"]
 

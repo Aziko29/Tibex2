@@ -63,103 +63,11 @@
     return (name || "?").split(" ").slice(0, 2).map(s => s[0] || "").join("").toUpperCase();
   }
 
-  // ═══════════════════ CSS ═══════════════════
-  function _injectStyles() {
-    if (document.getElementById("tibex-lock-styles")) return;
-    const s = document.createElement("style");
-    s.id = "tibex-lock-styles";
-    s.textContent = `
-      .tibex-lock {
-        position: fixed; inset: 0; z-index: 99999;
-        background: linear-gradient(135deg, #0f172a 0%, #1e1b2e 50%, #0c1729 100%);
-        display: none; align-items: center; justify-content: center;
-        color: #fff; font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
-        animation: tibexLockIn .3s ease-out;
-      }
-      .tibex-lock.show { display: flex; }
-      .tibex-lock::before {
-        content: ""; position: absolute; inset: 0;
-        background:
-          radial-gradient(circle at 20% 30%, rgba(124,58,237,.15) 0%, transparent 50%),
-          radial-gradient(circle at 80% 70%, rgba(15,118,110,.12) 0%, transparent 50%);
-        pointer-events: none;
-      }
-      @keyframes tibexLockIn { from { opacity: 0; transform: scale(1.02); } to { opacity: 1; transform: scale(1); } }
-      .tibex-lock-card {
-        position: relative; z-index: 1;
-        background: rgba(255,255,255,.06);
-        border: 1px solid rgba(255,255,255,.12);
-        border-radius: 24px; padding: 44px 48px;
-        max-width: 440px; width: 100%; text-align: center;
-        backdrop-filter: blur(24px);
-        -webkit-backdrop-filter: blur(24px);
-        box-shadow: 0 30px 80px rgba(0,0,0,.6);
-      }
-      .tibex-lock-avatar {
-        width: 80px; height: 80px; border-radius: 50%;
-        background: linear-gradient(135deg, #7c3aed, #5b21b6);
-        color: #fff; display: inline-flex; align-items: center; justify-content: center;
-        font-weight: 700; font-size: 28px; margin-bottom: 18px;
-        box-shadow: 0 8px 24px rgba(124,58,237,.4);
-      }
-      .tibex-lock-name { font-size: 22px; font-weight: 700; margin-bottom: 4px; letter-spacing: -.3px; }
-      .tibex-lock-role { font-size: 13px; opacity: .55; margin-bottom: 28px; text-transform: uppercase; letter-spacing: 1px; }
-      .tibex-lock-clock {
-        font-family: ui-monospace, "SF Mono", monospace;
-        font-size: 56px; font-weight: 200; letter-spacing: 2px;
-        margin-bottom: 4px; opacity: .95;
-        text-shadow: 0 2px 20px rgba(124,58,237,.3);
-      }
-      .tibex-lock-date { font-size: 13.5px; opacity: .5; margin-bottom: 32px; letter-spacing: .5px; }
-      .tibex-lock-input {
-        width: 100%; padding: 15px 18px; border-radius: 12px;
-        border: 1.5px solid rgba(255,255,255,.18);
-        background: rgba(255,255,255,.06);
-        color: #fff; font-size: 15px; font-family: inherit;
-        text-align: center; letter-spacing: 1px;
-        transition: all .15s; box-sizing: border-box;
-      }
-      .tibex-lock-input:focus {
-        outline: none; border-color: #7c3aed;
-        background: rgba(255,255,255,.1);
-        box-shadow: 0 0 0 4px rgba(124,58,237,.2);
-      }
-      .tibex-lock-input::placeholder { color: rgba(255,255,255,.3); }
-      .tibex-lock-btn {
-        width: 100%; padding: 15px; margin-top: 14px;
-        border: none; border-radius: 12px;
-        background: linear-gradient(135deg, #7c3aed, #5b21b6);
-        color: #fff; font-size: 15px; font-weight: 700;
-        font-family: inherit; cursor: pointer;
-        transition: all .15s; letter-spacing: .5px;
-      }
-      .tibex-lock-btn:hover:not(:disabled) {
-        transform: translateY(-1px);
-        box-shadow: 0 10px 28px rgba(124,58,237,.5);
-      }
-      .tibex-lock-btn:active:not(:disabled) { transform: translateY(0); }
-      .tibex-lock-btn:disabled { opacity: .55; cursor: not-allowed; transform: none; }
-      .tibex-lock-err {
-        color: #fca5a5; font-size: 13px; margin-top: 14px;
-        min-height: 18px; font-weight: 500;
-      }
-      .tibex-lock-out {
-        display: inline-block; margin-top: 28px;
-        background: transparent; border: none;
-        color: rgba(255,255,255,.45); font-size: 12.5px;
-        font-family: inherit; cursor: pointer; padding: 6px;
-        text-decoration: underline; text-underline-offset: 3px;
-        transition: color .15s;
-      }
-      .tibex-lock-out:hover { color: #fca5a5; }
-    `;
-    document.head.appendChild(s);
-  }
+  // CSS: static/css/tibex-session.css (HTML da <link> orqali; CSP style-src 'self' — JS da style elementi yaratilmaydi)
 
   // ═══════════════════ Lock Screen ═══════════════════
   function _buildLock() {
     if (_lockEl) return;
-    _injectStyles();
     _lockEl = document.createElement("div");
     _lockEl.className = "tibex-lock";
     _lockEl.id = "tibexLock";
@@ -268,7 +176,8 @@
     // qilgani uchun login.html darhol profilga qaytarib yuborardi.
     try {
       const r = await _api("/api/auth/logout", { method: "POST" });
-      if (!r.ok) {
+      // 401 = sessiya allaqachon tugagan: chiqish baribir muvaffaqiyatli hisoblanadi.
+      if (!r.ok && r.status !== 401) {
         console.error("[TIBEX] Logout so'rovi muvaffaqiyatsiz:", r.status);
         if (window.toast) {
           try { window.toast("Chiqishda xatolik yuz berdi, qayta urinib ko'ring", "bad"); } catch (_) {}
@@ -315,6 +224,7 @@
         aria.includes("chiqish")
       ) {
         btn._tibexLogoutBound = true;
+        if (!btn.getAttribute("type")) btn.setAttribute("type", "button");
         btn.addEventListener("click", (e) => {
           e.preventDefault();
           if (confirm("Tizimdan chiqishni tasdiqlaysizmi?")) {
@@ -335,6 +245,20 @@
       document.addEventListener(evt, _resetIdle, { passive: true });
     });
     _resetIdle();
+  }
+
+  // TIBEX_LOGOUT_STANDARD_v1: 🚪 tugma foydalanuvchi ma'lumoti (CURRENT_USER) kelishini
+  // KUTMAYDI. Aks holda sessiya tugagan yoki tarmoq sekin bo'lsa tugma "o'lik" qolardi.
+  function _bindLogoutEarly() {
+    _bindLogoutButtons();
+    // Keyin qo'shiladigan tugmalar uchun (masalan ⚙️/🔑 injektsiyasidan keyin)
+    setTimeout(_bindLogoutButtons, 500);
+    setTimeout(_bindLogoutButtons, 2000);
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", _bindLogoutEarly);
+  } else {
+    _bindLogoutEarly();
   }
 
   // TIBEX_STORE.CURRENT_USER paydo bo'lishini kutamiz

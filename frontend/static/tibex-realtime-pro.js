@@ -34,16 +34,7 @@
   var _isOnline = navigator.onLine;
   var _stale = false;
 
-  // ─── CSS ───
-  (function () {
-    if (document.getElementById("tibex-rt-css")) return;
-    var s = document.createElement("style");
-    s.id = "tibex-rt-css";
-    s.textContent =
-      ".sync-status.offline{background:rgba(239,68,68,.15)!important;color:#fca5a5!important}" +
-      ".sync-status.offline .dot{background:#ef4444!important;animation:none!important}";
-    document.head.appendChild(s);
-  })();
+  // CSS: static/css/tibex-realtime-pro.css (HTML da <link> orqali; CSP style-src 'self' — JS da style elementi yaratilmaydi)
 
   // ═══════════════════════════════════════════════════════════════
   // FOCUS / SCROLL

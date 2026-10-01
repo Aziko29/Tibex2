@@ -54,15 +54,30 @@ def _init() -> None:
 
 
 async def get_db() -> AsyncIterator[AsyncSession]:
+    from .realtime import begin_deferred, discard_deferred, flush_deferred
+
     _init()
     assert _SessionLocal is not None
-    async with _SessionLocal() as session:
-        try:
-            yield session
-            await session.commit()
-        except Exception:
-            await session.rollback()
-            raise
+    owner = begin_deferred()
+    try:
+        async with _SessionLocal() as session:
+            try:
+                yield session
+                await session.commit()
+            except Exception:
+                if owner:
+                    discard_deferred()
+                await session.rollback()
+                raise
+        # Faqat muvaffaqiyatli commit'dan keyin — klientlar yangi ma'lumotni oladi
+        if owner:
+            try:
+                await flush_deferred()
+            except Exception:  # signal xatosi so'rovni buzmasligi kerak
+                pass
+    finally:
+        if owner:
+            discard_deferred()
 
 
 async def dispose() -> None:

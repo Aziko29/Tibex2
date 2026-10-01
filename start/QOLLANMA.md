@@ -85,3 +85,26 @@ Ikkala oynada ham shunchaki **Ctrl+C** bosing, yoki oynalarni yoping.
 - **"cloudflared topilmadi"** — cloudflared o'rnatilganini tekshiring.
 - **Sayt ochilmayapti** — avval `start-backend.bat` oynasida xatolik
   yo'qligini tekshiring, keyin `start-cloudflared.bat`ni qayta oching.
+
+---
+
+## 4) start-public.bat  (internetga chiqadigan bemor sayti)
+
+**Nima qiladi:** `frontend/public/` papkani yig'adi (faqat index, bemor-login, bemor va kerakli CSS/JS)
+va 5600-portda serve qiladi. Xodim sahifalari bu yerda yo'q, papka ro'yxati ham yo'q.
+
+**Cloudflare Tunnel** faqat 5600 (sayt) va 8000 (faqat /api/portal, /api/otp, /api/telegram/webhook,
+/api/health) portlariga qarashi kerak: `backend/deploy/cloudflared-config.yml`.
+`start-frontend.bat` (5500) esa faqat ichki tarmoq (xodimlar) uchun, tunnelga ulanmaydi.
+Batafsil: `backend/deploy/PUBLIC_SITE.md`.
+
+
+---
+
+## 4) start-public.bat  (internetga chiqadigan bemor sayti)
+
+**Nima qiladi:** `frontend/public/` papkani yig'adi (faqat bemor sahifalari) va 127.0.0.1:5600 da xavfsiz serve qiladi.
+Cloudflare Tunnel shu portga (va API uchun 8000-portga) qaraydi — qarang: `PUBLIC_DEPLOY.md`
+va `backend/deploy/cloudflared-config.yml`.
+
+**Muhim:** `start-frontend.bat` (5500) faqat xodimlar uchun, LAN ichida. Tunnelga ULANMASIN.

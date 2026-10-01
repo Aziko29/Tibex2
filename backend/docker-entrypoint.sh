@@ -61,7 +61,7 @@ async def ensure_admin():
         existing = (await session.execute(select(User))).first()
         if existing is not None:
             return
-        password = generate_random_password(14)
+        password = generate_random_password(16)
         session.add(User(
             fullname="Administrator",
             login="admin",

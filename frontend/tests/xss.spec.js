@@ -79,7 +79,6 @@ function sourceFiles() {
   return [
     ...fs.readdirSync(dir).filter(f => f.endsWith(".js")).map(f => path.join(dir, f)),
     ...fs.readdirSync(path.join(dir, "js")).filter(f => f.endsWith(".js")).map(f => path.join(dir, "js", f)),
-    ...fs.readdirSync(root).filter(f => f.endsWith(".js")).map(f => path.join(root, f)), // bemor.js
   ];
 }
 

@@ -34,58 +34,10 @@
     return await store._api(path, opts);
   }
 
-  // ─── CSS ───
-  function _injectCSS() {
-    if (document.getElementById("tibex-pwd-css")) return;
-    const s = document.createElement("style");
-    s.id = "tibex-pwd-css";
-    s.textContent = `
-      .tibex-pwd-backdrop{position:fixed;inset:0;background:rgba(12,23,41,.6);display:none;align-items:center;justify-content:center;z-index:99998;padding:20px;font-family:-apple-system,"Segoe UI",Roboto,sans-serif}
-      .tibex-pwd-backdrop.show{display:flex}
-      .tibex-pwd-modal{background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.35);width:100%;max-width:520px;overflow:hidden;animation:tibexPwdIn .2s}
-      @keyframes tibexPwdIn{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
-      .tibex-pwd-head{padding:16px 20px;border-bottom:1px solid #dde3e8;display:flex;justify-content:space-between;align-items:center}
-      .tibex-pwd-head h3{font-size:15px;font-weight:700;color:#1a2332;margin:0;display:flex;align-items:center;gap:8px}
-      .tibex-pwd-head .x{background:transparent;border:none;font-size:20px;color:#64748b;cursor:pointer;padding:4px 8px;border-radius:6px}
-      .tibex-pwd-head .x:hover{background:#f1f5f9;color:#dc2626}
-      .tibex-pwd-body{padding:20px;color:#1a2332;font-size:14px}
-      .tibex-pwd-foot{padding:14px 20px;border-top:1px solid #dde3e8;display:flex;justify-content:flex-end;gap:8px;background:#f8fafc}
-      .tibex-pwd-field{margin-bottom:14px}
-      .tibex-pwd-field label{display:block;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px}
-      .tibex-pwd-field input{width:100%;border:1px solid #dde3e8;border-radius:6px;padding:10px 12px;font-family:inherit;font-size:14px;color:#1a2332;background:#fff;box-sizing:border-box}
-      .tibex-pwd-field input:focus{outline:none;border-color:#1e40af;box-shadow:0 0 0 3px rgba(30,64,175,.12)}
-      .tibex-pwd-btn{padding:9px 16px;border-radius:6px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;border:1px solid #dde3e8;background:#fff;color:#1a2332}
-      .tibex-pwd-btn:hover{border-color:#1e40af;color:#1e40af}
-      .tibex-pwd-btn.primary{background:#1e40af;color:#fff;border-color:#1e40af}
-      .tibex-pwd-btn.primary:hover{background:#1e3a8a}
-      .tibex-pwd-btn.danger{background:#dc2626;color:#fff;border-color:#dc2626}
-      .tibex-pwd-btn.danger:hover{background:#991b1b}
-      .tibex-pwd-btn:disabled{opacity:.55;cursor:not-allowed}
-      .tibex-pwd-strength{height:6px;background:#f1f5f9;border-radius:3px;overflow:hidden;margin-top:6px}
-      .tibex-pwd-strength .fill{height:100%;width:0;transition:all .2s}
-      .tibex-pwd-strength .fill.low{width:33%;background:#dc2626}
-      .tibex-pwd-strength .fill.mid{width:66%;background:#b45309}
-      .tibex-pwd-strength .fill.high{width:100%;background:#15803d}
-      .tibex-pwd-hint{font-size:11px;color:#94a3b8;margin-top:4px}
-      .tibex-pwd-msg{padding:10px 12px;border-radius:6px;font-size:12.5px;margin-bottom:14px}
-      .tibex-pwd-msg.err{background:#fef2f2;color:#991b1b;border-left:3px solid #dc2626}
-      .tibex-pwd-msg.ok{background:#dcfce7;color:#166534;border-left:3px solid #15803d}
-      .tibex-pwd-msg.warn{background:#fffbeb;color:#92400e;border-left:3px solid #b45309}
-      .tibex-pwd-pwdbox{background:#f8fafc;border:1px dashed #cbd5e1;border-radius:8px;padding:12px;margin:12px 0;text-align:center}
-      .tibex-pwd-pwdbox .code{font-family:ui-monospace,monospace;font-size:18px;font-weight:700;letter-spacing:2px;color:#1e40af;user-select:all;word-break:break-all;padding:8px 0}
-      .tibex-pwd-btn-mini{background:transparent;border:1px solid #dde3e8;padding:4px 8px;border-radius:5px;font-family:inherit;font-size:11px;color:#64748b;cursor:pointer;font-weight:500}
-      .tibex-pwd-btn-mini:hover{border-color:#1e40af;color:#1e40af;background:#dbeafe}
-      .tibex-pwd-counter{font-size:11px;padding:3px 8px;border-radius:10px;font-weight:700;font-family:ui-monospace,monospace}
-      .tibex-pwd-counter.ok{background:#dcfce7;color:#166534}
-      .tibex-pwd-counter.warn{background:#fffbeb;color:#92400e}
-      .tibex-pwd-counter.bad{background:#fef2f2;color:#991b1b}
-    `;
-    document.head.appendChild(s);
-  }
+  // CSS: static/css/tibex-password.css (HTML da <link> orqali; CSP style-src 'self' — JS da style elementi yaratilmaydi)
 
   function _buildModal() {
     if (_modalEl) return;
-    _injectCSS();
     _modalEl = document.createElement("div");
     _modalEl.className = "tibex-pwd-backdrop";
     _modalEl.id = "tibexPwdModal";
@@ -276,8 +228,14 @@
     btn.style.cssText = "display:flex;align-items:center;gap:6px;position:relative;";
     btn.innerHTML = '🔑 Parol <span class="tibex-pwd-counter ' + counterCls + '" style="font-size:10px;padding:2px 6px;">' + changes + '</span>';
     btn.addEventListener("click", _openModal);
+    btn.type = "button";
+    // Standart tartib: ⚙️ Sozlamalar → 🔑 Parol → 🚪 Chiqish
+    const set = topbar.querySelector("[data-tibex-set-btn]");
+    const out = topbar.querySelector("#btnLogout, button[title='Chiqish']");
     const spacer = topbar.querySelector(".spacer");
-    if (spacer) spacer.parentNode.insertBefore(btn, spacer.nextSibling);
+    if (set) set.parentNode.insertBefore(btn, set.nextSibling);
+    else if (out) topbar.insertBefore(btn, out);
+    else if (spacer) spacer.parentNode.insertBefore(btn, spacer.nextSibling);
     else topbar.appendChild(btn);
   }
 

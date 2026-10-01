@@ -43,4 +43,4 @@ HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
     CMD curl -fsS http://127.0.0.1:8000/api/health || exit 1
 
 ENTRYPOINT ["./docker-entrypoint.sh"]
-CMD ["sh", "-c", "exec gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w ${WEB_CONCURRENCY:-1} -b 127.0.0.1:8000 --forwarded-allow-ips=127.0.0.1 --timeout 60 --graceful-timeout 30"]
+CMD ["sh", "-c", "exec gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w ${WEB_CONCURRENCY:-1} -b 0.0.0.0:8000 --forwarded-allow-ips=127.0.0.1,172.16.0.0/12,192.168.0.0/16 --timeout 60 --graceful-timeout 30"]

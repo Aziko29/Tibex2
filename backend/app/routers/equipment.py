@@ -10,6 +10,7 @@ from ..deps import (
     require_csrf,
     require_permission,
 )
+from ..inventory_validation import validate_equipment
 from ..models import Equipment, Role, User
 from ..realtime import publish
 from ..security.audit import log_action
@@ -85,7 +86,7 @@ async def create_equipment(
     user: User = Depends(get_current_user),
     _perm: Role = Depends(require_permission("equipment", "create")),
 ):
-    e = Equipment(**body.model_dump())
+    e = Equipment(**validate_equipment(body.model_dump()))
     db.add(e)
     await db.flush()
     await db.refresh(e)
@@ -114,7 +115,8 @@ async def update_equipment(
     if e is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Uskuna topilmadi")
     before = _to_dict(e)
-    for k, v in body.model_dump(exclude_unset=True).items():
+    data = validate_equipment(body.model_dump(exclude_unset=True), partial=True)
+    for k, v in data.items():
         setattr(e, k, v)
     await db.flush()
     after = _to_dict(e)

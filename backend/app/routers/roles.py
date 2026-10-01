@@ -116,8 +116,8 @@ def _assert_role_permissions_allowed(
 class RoleIn(BaseModel):
     key: str = Field(min_length=2, max_length=64, pattern=r"^[a-z0-9_]+$")
     name: str = Field(min_length=1, max_length=128)
-    icon: str = "👤"
-    color: str = "lab"
+    icon: str = Field(default="👤", max_length=8)
+    color: str = Field(default="lab", max_length=32)
     description: str = ""
     permissions: list[str] | str = Field(default_factory=list)
 
@@ -128,9 +128,9 @@ class RoleIn(BaseModel):
 
 
 class RolePatch(BaseModel):
-    name: str | None = None
-    icon: str | None = None
-    color: str | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=128)
+    icon: str | None = Field(default=None, max_length=8)
+    color: str | None = Field(default=None, max_length=32)
     description: str | None = None
     permissions: list[str] | str | None = None
     active: bool | None = None
@@ -234,6 +234,11 @@ async def update_role(
 
     before = _to_dict(r)
     data = body.model_dump(exclude_unset=True)
+    for key in ("name", "icon", "color", "description", "permissions", "active"):
+        if key in data and data[key] is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"{key} bo'sh bo'lishi mumkin emas")
+    if "name" in data and not data["name"]:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Rol nomi bo'sh bo'lmasligi kerak")
     old_perms = before.get("permissions")
     old_active = before.get("active")
 

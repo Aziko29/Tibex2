@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,19 +17,38 @@ from ..security.audit import log_action
 router = APIRouter()
 
 
+def _strip_required(value: str | None) -> str | None:
+    if value is None:
+        return value
+    value = value.strip()
+    if not value:
+        raise ValueError("Bo'sh bo'lmasligi kerak")
+    return value
+
+
 class ServiceIn(BaseModel):
-    code: str
-    name: str
-    category: str
-    price: int = 0
+    code: str = Field(min_length=1, max_length=64)
+    name: str = Field(min_length=1, max_length=200)
+    category: str = Field(min_length=1, max_length=64)
+    price: int = Field(default=0, ge=0)
+
+    @field_validator("code", "name", "category")
+    @classmethod
+    def strip_text(cls, value: str) -> str:
+        return _strip_required(value)
 
 
 class ServicePatch(BaseModel):
-    code: str | None = None
-    name: str | None = None
-    category: str | None = None
-    price: int | None = None
+    code: str | None = Field(default=None, min_length=1, max_length=64)
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    category: str | None = Field(default=None, min_length=1, max_length=64)
+    price: int | None = Field(default=None, ge=0)
     active: bool | None = None
+
+    @field_validator("code", "name", "category")
+    @classmethod
+    def strip_text(cls, value: str | None) -> str | None:
+        return _strip_required(value)
 
 
 def _to_dict(s: Service) -> dict:
@@ -107,7 +126,17 @@ async def update_service(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Xizmat topilmadi")
 
     before = _to_dict(s)
-    for k, v in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    for key in ("code", "name", "category", "price", "active"):
+        if key in data and data[key] is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"{key} bo'sh bo'lishi mumkin emas")
+    if "code" in data and data["code"] != s.code:
+        clash = (
+            await db.execute(select(Service).where(Service.code == data["code"], Service.id != service_id))
+        ).scalar_one_or_none()
+        if clash is not None:
+            raise HTTPException(status.HTTP_409_CONFLICT, "Bu kod band")
+    for k, v in data.items():
         setattr(s, k, v)
     await db.flush()
 

@@ -18,7 +18,7 @@ from app.security.passwords import check_password_strength, hash_password
 
 
 async def create(login: str, password: str, fullname: str, phone: str = ""):
-    strong, reason = check_password_strength(password)
+    strong, reason = check_password_strength(password, login=login, fullname=fullname)
     if not strong:
         print(f"  [X] {reason}")
         return False

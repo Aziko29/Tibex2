@@ -25,6 +25,35 @@ TIBEX_ALLOWED_ORIGINS=["http://localhost:5500"]
 TIBEX_COOKIE_SAMESITE=lax
 ```
 
+## Asset hash'lash (deploy oldidan majburiy)
+
+`static/js/*.js` va `static/css/*.css` nomlari `<nom>.<8hex>.<ext>` ko'rinishida bo'lishi shart: nginx aynan shu nomlarni
+7 kun `immutable` keshlaydi. Hash = `sha256(tarkib, CRLF→LF)` ning birinchi 8 belgisi. Bu fayllardan birini
+o'zgartirgan bo'lsangiz:
+
+```bash
+node frontend/tools/hash_assets.js          # nomlarni va 8 ta HTML dagi havolalarni yangilaydi
+node frontend/tools/hash_assets.js --check  # faqat tekshiradi (CI ham shuni yuritadi)
+git add -A frontend
+```
+
+Nomi hash'siz yoki hash'i tarkibga mos bo'lmagan fayl bilan `tests/asset-hash.spec.js` (va CI) yiqiladi. Aks holda foydalanuvchi
+brauzeri eski faylni 7 kun ushlab turishi mumkin. `static/` ildizidagi `tibex-*.js` fayllar hash'lanmaydi va keshlanmaydi.
+
+## Lokalda prod-CSP bilan sinash
+
+Prod nginx `style-src 'self'` beradi (nonce ham, `'unsafe-inline'` ham yo'q), dev'da esa CSP yo'q, shuning uchun JS da
+yaratilgan `<style>` lokalda ko'rinmay qoladi. Prod bilan bir xil CSP beradigan server:
+
+```bash
+node frontend/tools/serve_with_csp.js --port 5500 --api http://127.0.0.1:8000   # CSP matni deploy/nginx.conf dan o'qiladi
+```
+
+Konsolda `Refused to apply inline style` / `violates the following Content Security Policy` bo'lmasligi kerak.
+Qoida: JS da `createElement("style")` / `<style>` yozmang. CSS ni `static/css/` ga chiqaring, HTML da `<link>` qiling va
+`node frontend/tools/hash_assets.js` ni yurgizing (`tests/csp-inline-style.spec.js` shuni tekshiradi).
+`style="..."` atributi va `el.style.*` ga nginx `style-src-attr 'unsafe-inline'` ruxsat beradi.
+
 ## Production
 
 Frontendni Nginx (yoki boshqa static host) orqali serve qiling.

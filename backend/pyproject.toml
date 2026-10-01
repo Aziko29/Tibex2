@@ -47,7 +47,7 @@ tibex-simulate = "scripts.clinic_simulation:main"
 
 # ⚠️ ENG MUHIM QISM — paketlarni aniq ko'rsatish
 [tool.setuptools]
-packages = ["app", "app.security", "app.routers", "scripts"]
+packages = ["app", "app.security", "app.routers", "app.middleware", "app.services", "scripts"]
 
 [tool.ruff]
 line-length = 110

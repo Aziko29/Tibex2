@@ -3,6 +3,13 @@
 ## Tahdid modeli
 Klinika PHI'si: bemor ma'lumotlari, tashxis, retsept, lab natijalari. Asosiy xavflar: sirlar sizishi, XSS, IDOR, ichki shaxs tomonidan suiiste'mol, DB/zaxira o'g'irlanishi.
 
+## Local-only middleware (TIBEX_LOCAL_ONLY_ENABLED)
+Default-deny ikkinchi qatlam: yoqilganda ilova **faqat local klient IP'laridan** (loopback, RFC1918, CGNAT, ULA, link-local) foydalanish mumkin. Non-local HTTP **404**, WebSocket **4404**. `/api/health` va `/api/telegram/webhook` har doim ochiq.
+
+Nima uchun: backend ko'pincha nginx yoki Cloudflare Tunnel ortida turadi va "o'zini ochiq deb bilmaydi". Agar bir kunda port yoki tunnel noto'g'ri konfiguratsiya qilinsa, butun API tashqi olamga ochilib qoladi.
+
+To'liq qo'llanma: `docs/LOCAL_ONLY.md`.
+
 ## PHI shifrlash (17-band)
 AES-GCM (context-bound, kalit halqasi). Shifrlangan: `patients.{phone, address, allergies, chronic}`, `appointments.{service, complaint, vitals, prelim_dx, final_dx, prescriptions, draft, lab_orders}`, `lab_orders.{result_data, result_summary, result_note}`, integratsiya `api_key`.
 Migratsiya ikki bosqichli: `phi20260929_1000` yangi `*_enc` ustunlarni to'ldiradi, **eski ochiq ustunlar saqlanadi (nullable)**. Barqaror ishlashi tasdiqlangach keyingi releasda ularni o'chiring (alohida migratsiya) va zaxiralarni ham yangilang — aks holda eski ochiq matn zaxiralarda qoladi.

@@ -15,7 +15,7 @@ from sqlalchemy import select
 
 import app.db as _db  # auto-fix: _SessionLocal snapshot bug'ini tuzatadi
 from app.models import User
-from app.security.passwords import hash_password
+from app.security.passwords import check_password_strength, hash_password
 from app.config import get_settings
 
 
@@ -47,11 +47,12 @@ def main() -> int:
     print("  [!] Bu barcha parollarni bir xil vaqtinchalik parolga o'zgartiradi")
     print("  [!] Har bir xodim keyin o'z parolini yangilashi kerak")
     print()
-    pwd = getpass.getpass("  Vaqtinchalik parol (>= 8 belgi): ").strip()
-    if len(pwd) < 8:
-        print("[XATO] Kamida 8 belgi")
+    pwd = getpass.getpass("  Vaqtinchalik parol (>= 10 belgi): ")
+    ok, reason = check_password_strength(pwd)
+    if not ok:
+        print(f"[XATO] {reason}")
         return 1
-    pwd2 = getpass.getpass("  Tasdiqlang: ").strip()
+    pwd2 = getpass.getpass("  Tasdiqlang: ")
     if pwd != pwd2:
         print("[XATO] Parollar mos kelmadi")
         return 1

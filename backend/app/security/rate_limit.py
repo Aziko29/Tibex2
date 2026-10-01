@@ -8,6 +8,35 @@ from ..redis_client import get_redis
 _memory_store: dict[str, list[float]] = {}
 _observation_store: dict[str, list[float]] = defaultdict(list)
 
+# TIBEX_RATELIMIT_MEMORY_CLEANUP_v1: Redis yo'q bo'lganda har bir noyob
+# kalit (IP, IP+login, ...) xotirada abadiy qolardi. Uzoq ishlagan server
+# bilan bu dict'lar millionlab kalitga yetishi mumkin. Davriy cleanup:
+# 5 daqiqada bir marta, oxirgi 1 soat ichida ishlatilmagan kalitlarni o'chiramiz.
+_CLEANUP_STATE = {"last_run": 0.0}
+_CLEANUP_INTERVAL_S = 300.0   # 5 daqiqa
+_STORE_MAX_AGE_S = 3600.0     # 1 soat
+_STORE_HARD_CAP = 50_000      # favqulodda chegara
+
+
+def _cleanup_stores_if_due() -> None:
+    now = time.time()
+    if now - _CLEANUP_STATE["last_run"] < _CLEANUP_INTERVAL_S:
+        return
+    _CLEANUP_STATE["last_run"] = now
+    for store in (_memory_store, _observation_store):
+        stale = [
+            k for k, arr in store.items()
+            if not arr or (now - max(arr)) > _STORE_MAX_AGE_S
+        ]
+        for k in stale:
+            store.pop(k, None)
+        # Favqulodda himoya: agar biror sabab bilan hali ham juda ko'p
+        # kalit qolgan bo'lsa (masalan, 1 soatda juda ko'p noyob IP),
+        # eng eski yozuvlarni bo'shatib tashlaymiz.
+        if len(store) > _STORE_HARD_CAP:
+            for k in list(store.keys())[: len(store) - _STORE_HARD_CAP]:
+                store.pop(k, None)
+
 
 def _require_redis():
     """Production'da rate limit uchun umumiy, bardoshli Redis talab qilinadi."""
@@ -24,6 +53,7 @@ def _require_redis():
 
 async def hit(key: str, limit: int, window: int) -> int:
     """Sliding-window rate limit. Limitdan oshsa 429 ko'taradi."""
+    _cleanup_stores_if_due()
     r = _require_redis()
     now = time.time()
 
@@ -58,6 +88,7 @@ async def reset(key: str) -> None:
 
 async def observe(key: str, window: int) -> int:
     """Non-blocking fixed-window counter for alerting; never rejects requests."""
+    _cleanup_stores_if_due()
     r = _require_redis()
     if r is not None:
         # Atomic fixed window: only the request creating the key sets expiry.

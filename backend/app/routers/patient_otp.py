@@ -1,7 +1,6 @@
 """Telegram yoki admin bergan bir martalik kod bilan bemor kirishi."""
-import secrets
 import hashlib
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, Field
@@ -14,12 +13,9 @@ from ..deps import client_ip, get_current_user, require_csrf
 from ..models import LoginAttempt, OTPCode, Patient, Session as DBSession, User
 from ..security.audit import log_action
 from ..security.csrf import issue_csrf
-from ..security.passwords import hash_password_async
 from ..security.otp import (
     OTP_MAX_ATTEMPTS,
     OTP_TTL_SECONDS,
-    generate_code,
-    hash_code,
     normalize_phone,
     verify_code,
 )
@@ -27,12 +23,17 @@ from ..security.rate_limit import hit, observe
 from ..security.sessions import create_token
 from ..security.session_cookie import set_session_cookie
 from ..security.telegram import send_telegram_code
+from ..services.patient_service import (
+    PatientAccountConflict,
+    get_or_create_patient_user,
+    issue_login_code,
+    masked_phone,
+)
 
 router = APIRouter()
 
 
-def _masked_phone(phone: str) -> str:
-    return f"***{phone[-2:]}" if len(phone) >= 2 else "***"
+_masked_phone = masked_phone  # eski nom (loglar shu nom bilan yozilgan)
 
 
 class OTPRequest(BaseModel):
@@ -106,33 +107,25 @@ async def request_otp(
         )
         return generic_response
 
-    # Eski kodlarni bekor qilamiz
-    old_codes = (
-        await db.execute(
-            select(OTPCode).where(
-                OTPCode.phone == phone,
-                OTPCode.used == False,  # noqa: E712
-            )
-        )
-    ).scalars().all()
-    for old in old_codes:
-        old.used = True
+    # Telegram chatiga sayt orqali yuboriladigan kodlar soni chegaralanadi:
+    # begona odam boshqa bemorning raqamini kiritib botiga kod yog'dira olmasin.
+    # Limit oshsa mavjud yaroqli kod ham bekor qilinmaydi.
+    if not user.telegram_chat_id:
+        db.add(LoginAttempt(username=phone, ip=ip, success=False))
+        return generic_response
+    try:
+        await hit(f"rl:tg:otp:site-chat:{user.telegram_chat_id}", limit=5, window=900)
+    except HTTPException:
+        return generic_response
 
-    # Yangi kod
-    code = generate_code()
-    otp = OTPCode(
-        phone=phone,
-        code_hash=hash_code(code, phone),
-        user_id=user.id,
-        expires_at=datetime.now(timezone.utc) + timedelta(seconds=OTP_TTL_SECONDS),
-        ip=ip,
-    )
-    db.add(otp)
-    await db.flush()
+    # Eski kodlar bekor qilinib, yangisi yaratiladi (umumiy servis).
+    code, otp = await issue_login_code(db, user, phone, ip)
 
     # SMS umuman ishlatilmaydi: Telegram bog'lanmagan yoki bot yetkazolmagan
     # bo'lsa, kod yaroqsiz qilinadi va foydalanuvchi botni avval ulashi kerak.
-    sent = bool(user.telegram_chat_id) and await send_telegram_code(user.telegram_chat_id, code)
+    chat_id = str(user.telegram_chat_id)
+    await db.commit()  # kod bazada saqlangandan keyingina yuboriladi
+    sent = await send_telegram_code(chat_id, code)
 
     if not sent:
         # An undelivered code must not remain valid, and provider failures
@@ -177,39 +170,13 @@ async def issue_admin_code(
     if len(phone) != 13 or not phone.startswith("+998"):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Bemor telefon raqami noto'g'ri")
     await hit(f"rl:patient_admin_code:patient:{patient_record.id}", limit=5, window=900)
-    patient = (await db.execute(select(User).where(User.patient_id == patient_record.id))).scalar_one_or_none()
-    if patient is None:
-        patient = (await db.execute(select(User).where(User.login == phone))).scalar_one_or_none()
-        if patient is not None and (patient.role_key != "patient" or patient.patient_id != patient_record.id):
-            raise HTTPException(status.HTTP_409_CONFLICT, "Bu telefon boshqa akkauntga bog'langan")
-    if patient is None:
-        patient = User(
-            fullname=patient_record.fullname,
-            login=phone,
-            password_hash=await hash_password_async(secrets.token_urlsafe(32)),
-            role_key="patient",
-            phone=phone,
-            patient_id=patient_record.id,
-            active=True,
-        )
-        db.add(patient)
-        await db.flush()
+    try:
+        patient = await get_or_create_patient_user(db, patient_record, phone)
+    except PatientAccountConflict:
+        raise HTTPException(status.HTTP_409_CONFLICT, "Bu telefon boshqa akkauntga bog'langan")
     if not patient.active or patient.role_key != "patient":
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Bemor akkaunti faol emas")
-    old_codes = (await db.execute(select(OTPCode).where(OTPCode.phone == phone, OTPCode.used == False))).scalars().all()  # noqa: E712
-    for old in old_codes:
-        old.used = True
-
-    code = generate_code()
-    now = datetime.now(timezone.utc)
-    db.add(OTPCode(
-        phone=phone,
-        code_hash=hash_code(code, phone),
-        user_id=patient.id,
-        expires_at=now + timedelta(seconds=OTP_TTL_SECONDS),
-        ip=client_ip(request) or "admin-issued",
-    ))
-    await db.flush()
+    code, _otp = await issue_login_code(db, patient, phone, client_ip(request) or "admin-issued")
     await log_action(
         db, user=admin.fullname, role=admin.role_key, action="patient_login_code_issue",
         detail=f"Bemor #{patient_record.id} uchun bir martalik kirish kodi berildi", ip=client_ip(request),

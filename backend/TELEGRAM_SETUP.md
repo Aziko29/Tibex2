@@ -64,11 +64,11 @@ python scripts/setup_telegram_webhook.py info
 2. Bot ko'rsatgan **Telefon raqamimni yuborish** tugmasini bosing. Telefon
    raqami Telegram Contact orqali, bemorning o'z akkauntidan kelishi kerak.
 3. Bot telefonni bemorlar bazasidan izlaydi. Topilsa bemor akkauntini
-   yaratadi (avval bo'lmasa), Telegram bilan bog'laydi va birinchi 5
-   daqiqalik kodni shu chatga jo'natadi.
-4. Saytga telefon raqami va bot yuborgan kod bilan kiring. Keyingi kodni
-   saytdagi **Telegram kodini so'rash** tugmasi yoki botdagi `/code`
-   buyrug'i orqali oling.
+   yaratadi (avval bo'lmasa) va Telegram bilan bog'laydi. Ulanganda kod
+   AVTOMATIK yuborilmaydi.
+4. Kirish kodini oling: botga `/code` yuboring (yoki saytdagi **Telegram
+   kodini so'rash** tugmasini bosing). Kod faqat shu so'rovdan keyin
+   keladi. Keyin saytga telefon raqami va shu kod bilan kiring.
 5. Admin panelida Bemorlar → bemor qatori → akkaunt tugmasi →
    **Bir martalik kirish kodi** orqali bemorga 5 daqiqa amal qiladigan
    kod berish mumkin. Kod bir marta ishlaydi.

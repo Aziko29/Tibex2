@@ -34,7 +34,9 @@ ProtectControlGroups=true
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 LimitNOFILE=65536
 MemoryMax=2G
-ReadWritePaths=/opt/tibex/backend/backups
+# "-" prefiksi: papka yo'q bo'lsa ham servis ishga tushadi (namespace xatosi bo'lmaydi).
+# Papkani OPERATIONS.md dagi "tibex.service" qadami yaratadi.
+ReadWritePaths=-/opt/tibex/backend/backups
 
 [Install]
 WantedBy=multi-user.target

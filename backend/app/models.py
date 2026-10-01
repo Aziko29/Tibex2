@@ -213,6 +213,12 @@ class Appointment(Base):
     )
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_by: Mapped[str | None] = mapped_column(String(200))
+    # Qabulxona: kutish taymeri va bekor/kelmadi sababi
+    arrived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cancel_reason: Mapped[str | None] = mapped_column(
+        "cancel_reason_enc", EncryptedText("appointments.cancel_reason")
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

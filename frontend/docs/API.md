@@ -23,6 +23,25 @@ Har bir `POST/PATCH/PUT/DELETE` sorovda `X-CSRF-Token` header bolishi shart.
 | POST   | `/api/otp/admin-issue` | Admin uchun bemorga bir martalik kod chiqarish |
 | POST   | `/api/telegram/webhook` | Bot kontaktini qabul qilish va ulash |
 | GET    | `/api/telegram/bot-info` | Ommaviy bot nomi (token qaytarmaydi) |
+
+### Bemor kabineti (`/api/portal/*`, bemor sessiyasi kerak)
+
+| Metod | Yo'l | Vazifa |
+|--------|------|--------|
+| GET    | `/api/portal/csrf` | Sessiyaga bog'langan CSRF token |
+| POST   | `/api/portal/logout` | Sessiyani yopish |
+| GET    | `/api/portal/me` | Profil + `telegram_linked`, `telegram_available` |
+| PATCH  | `/api/portal/me` | Telefon / manzilni o'zgartirish (telefon o'zgarsa login ham o'zgaradi) |
+| GET    | `/api/portal/summary` | Dashboard statistikasi |
+| GET    | `/api/portal/appointments` | Bemorning qabullari |
+| GET    | `/api/portal/lab-orders` | Laboratoriya natijalari |
+| GET    | `/api/portal/payments` | To'lovlar tarixi |
+| GET    | `/api/portal/telegram/status` | Telegram ulanganligi (ulanishni kutish uchun) |
+| POST   | `/api/portal/telegram/link-token` | Botga bir martalik `/start` havolasi |
+| POST   | `/api/portal/telegram/unlink` | Telegram ulanishini uzish |
+
+Bemor paroli bilan kirmaydi, shuning uchun `/api/portal/change-password` va 
+`/api/portal/permissions` endpointlari olib tashlangan.
 | POST   | `/api/auth/logout` | Chiqish |
 | GET    | `/api/bootstrap` | Frontend snapshot |
 | GET/POST/PATCH/DELETE | `/api/patients` | Bemorlar |

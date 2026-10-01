@@ -1,0 +1,21 @@
+# %USERPROFILE%\.cloudflared\config.yml  (tunnel ID va credentials yo'lini o'zingiznikiga almashtiring)
+# Tunnel endi FAQAT quyidagilarni internetga chiqaradi. Boshqa hamma narsa Cloudflare
+# chetidayoq 404 oladi — hatto lokal serverda xato bo'lsa ham.
+tunnel: <TUNNEL-ID>
+credentials-file: C:\Users\<SIZ>\.cloudflared\<TUNNEL-ID>.json
+
+ingress:
+  # 1) Bemor API (aniq ro'yxat; /api/patients, /api/users, /api/export va h.k. YO'Q)
+  - hostname: tibex.uz
+    path: ^/api/(portal|otp)(/|$)
+    service: http://127.0.0.1:8000
+  - hostname: tibex.uz
+    path: ^/api/(telegram/webhook|health)$
+    service: http://127.0.0.1:8000
+  # 2) Statik sayt — faqat public/ papka (5600), xodim serveri (5500) emas
+  - hostname: tibex.uz
+    service: http://127.0.0.1:5600
+  - hostname: www.tibex.uz
+    service: http://127.0.0.1:5600
+  # 3) Qolgani
+  - service: http_status:404

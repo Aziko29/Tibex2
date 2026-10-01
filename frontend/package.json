@@ -4,7 +4,10 @@
   "private": true,
   "description": "Dev-only test dependencies for the static TIBEX frontend (no build step).",
   "scripts": {
-    "test": "node --test tests/xss.spec.js tests/snapshot-hash.spec.js"
+    "test": "node --test tests/xss.spec.js tests/snapshot-hash.spec.js tests/asset-hash.spec.js tests/csp-inline-style.spec.js tests/doctor-reset.spec.js tests/staff-list.spec.js tests/inventory-admin.spec.js",
+    "hash-assets": "node tools/hash_assets.js",
+    "serve:csp": "node tools/serve_with_csp.js",
+    "hash-assets:check": "node tools/hash_assets.js --check"
   },
   "devDependencies": {
     "jsdom": "24.1.3"

@@ -1,5 +1,6 @@
 from functools import lru_cache
 from ipaddress import ip_address
+import os
 import re
 from urllib.parse import urlsplit
 
@@ -70,6 +71,13 @@ def _is_production_origin(origin: str) -> bool:
 # deb qo'ying — fayl mavjud bo'lsa, uning tarkibi (bo'sh joylarsiz)
 # TIBEX_SECRET_KEY sifatida ishlatiladi. Ikkalasi ham berilsa, _FILE ustun
 # turadi (aniq niyat bildirilgan deb hisoblanadi).
+#
+# TIBEX_FILE_SECRETS_CROSS_PLATFORM_v1:
+#   Windows'da `/run/secrets/...` mavjud emas. Ilgari bu `RuntimeError`
+#   bilan qulab tushardi — dev/test muhitida ishlash imkonsiz edi.
+#   Endi: fayl MAVJUD BO'LMASA — bu env jim o'tkazib yuboriladi va
+#   `TIBEX_<FIELD>` qiymati (yoki default) ishlatiladi. Fayl mavjud
+#   bo'lib, o'qib bo'lmasa — xato (chunki bu aniq muammo).
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -82,21 +90,33 @@ class Settings(BaseSettings):
     def __init__(self, **values):
         # Read *_FILE secret sources into this Settings instance only. Never
         # copy secret material into process-wide os.environ (inherited by child processes).
-        import os
         for env_name, path in os.environ.items():
-            if not env_name.startswith("TIBEX_") or not env_name.endswith("_FILE") or not path.strip():
+            if not env_name.startswith("TIBEX_") or not env_name.endswith("_FILE"):
                 continue
+            path = (path or "").strip()
+            if not path:
+                continue
+
+            # Cross-platform: fayl mavjud bo'lmasa — jim o'tkazib yuborish.
+            # Prod'da docker secrets bilan fayl mavjud bo'ladi.
+            # Dev/test/Windows'da fayl yo'q — TIBEX_<FIELD> env yoki default ishlaydi.
+            if not os.path.isfile(path):
+                continue
+
             if env_name == "TIBEX_MASTER_KEYS_FILE":
-                values["master_keys_file"] = path.strip()
+                values["master_keys_file"] = path
                 continue
             field_name = env_name[len("TIBEX_"):-len("_FILE")].lower()
             if field_name not in type(self).model_fields:
                 continue
             try:
-                with open(path.strip(), "r", encoding="utf-8") as secret_file:
+                with open(path, "r", encoding="utf-8") as secret_file:
                     values[field_name] = secret_file.read().strip()
             except OSError as exc:
-                raise RuntimeError(f"{env_name} uchun secret faylni o'qib bo'lmadi") from exc
+                # Fayl bor lekin o'qib bo'lmadi — bu haqiqiy xato.
+                raise RuntimeError(
+                    f"{env_name} uchun secret faylni o'qib bo'lmadi"
+                ) from exc
         super().__init__(**values)
 
     env: str = "local"
@@ -117,6 +137,10 @@ class Settings(BaseSettings):
     # Parol hashlash uchun maxfiy kalit (pepper)
     # DB'da EMAS, faqat .env'da saqlanadi
     password_pepper: str = Field(..., min_length=32)
+    # Pepper almashtirish davrida ESKI pepper(lar) (vergul bilan ajratilgan). Eski pepper bilan
+    # tasdiqlangan parollar kirishda yangi pepper bilan qayta hashlanadi. Hamma akkaunt
+    # ko'chgach bo'sh qoldiring. Env: TIBEX_PASSWORD_PEPPER_OLD yoki TIBEX_PASSWORD_PEPPER_OLD_FILE
+    password_pepper_old: str = ""
 
     # CORS va cookie
     # allowed_origins: frontend qaysi origin(lar)dan kelsa CORS ruxsat berilishi.
@@ -139,6 +163,45 @@ class Settings(BaseSettings):
     # Default: False — frontend ENDI ALOHIDA ilova, backend faqat /api/* beradi.
     # Faqat lokal bir martalik tekshiruv uchun True qilib yoqish mumkin.
     serve_frontend: bool = False
+
+    # TIBEX_LOCAL_ONLY_v1: yoqilganda (default) ilova faqat local klient
+    # IP'laridan (loopback, RFC1918, CGNAT, ULA, link-local) foydalanish
+    # mumkin. Local bo'lmagan HTTP so'rovlar 404 oladi, WebSocket'lar
+    # 4404 bilan yopiladi. `/api/health` har doim ochiq — tashqi
+    # monitorlar uchun. O'chirish faqat ilova ataylab ommaviy tarmoqqa
+    # chiqarilganda kerak.
+    local_only_enabled: bool = True
+
+    # TIBEX_PATIENT_PUBLIC_ACCESS_v1:
+    # Yoqilganda bemor portali internetdan ham ochiq bo'ladi, xodim API'lari
+    # esa baribir faqat lokal tarmoqdan ishlaydi. Bu `local_only_enabled`
+    # bilan birga ishlaydi:
+    #
+    #   local_only_enabled=false                → hammasi ochiq (faqat dev uchun)
+    #   local_only_enabled=true, patient=true   → bemor ochiq, xodim lokal
+    #   local_only_enabled=true, patient=false  → hammasi lokal
+    #
+    # Ochiq yo'llar (patient=true bo'lganda):
+    #   /api/health              (har doim)
+    #   /api/telegram/webhook    (har doim — Telegram server o'zi chaqiradi)
+    #   /api/otp/*               → bemor telefon+OTP
+    #   /api/portal/*            → bemor kabineti (role=patient)
+    #   /api/telegram/bot-info   → login sahifasi uchun bot username
+    #   /api/auth/me             → bemor-login.html sessiya tekshiruvi
+    #   /api/auth/logout         → xavfsiz chiqish
+    #
+    # Xodim login/API'lari (`/api/auth/login`, `/api/users`, `/api/patients`,
+    # `/api/appointments`, `/api/lab-orders`, `/api/payments`, `/api/audit`,
+    # `/api/settings`, `/api/roles`, `/api/monitoring/*`, `/api/ws` va h.k.)
+    # bu ro'yxatda ATAYLAB YO'Q — ular faqat LAN'dan ishlaydi.
+    patient_web_access: bool = True
+
+    # TIBEX_CF_HEADER_TRUST_v1: `Cf-Connecting-Ip` FAQAT backend'ga to'g'ridan-to'g'ri
+    # cloudflared (Cloudflare Tunnel) ulanadigan bo'lsa ishonchli. nginx orqasida
+    # bu header klient tomonidan soxtalashtirilishi mumkin (peer=127.0.0.1) va
+    # local-only himoyani butunlay chetlab o'tadi. Default: false.
+    trust_cf_connecting_ip: bool = False
+
     # 29-band: kuzatuv
     log_json: bool = True
     sentry_dsn: str = ""
@@ -158,9 +221,12 @@ class Settings(BaseSettings):
     bootstrap_patient_days: int = 30
     bootstrap_appointment_days: int = 7
 
+    # Integratsiya (device turi): ruxsat etilgan LAN diapazonlari (vergul bilan).
+    # Bo'sh qoldirilsa LAN manzillar yopiladi. Loopback/link-local doim bloklanadi.
+    integration_lan_cidrs: str = "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+
     # TIBEX_CLINIC_TZ_v1
     clinic_timezone: str = "Asia/Tashkent"
-
 
     # TIBEX_PROXY_TRUST_v1: X-Forwarded-For faqat shu IP'lardan ishonchli
     trusted_proxy_ips: list[str] = ["127.0.0.1", "::1"]
@@ -217,6 +283,20 @@ class Settings(BaseSettings):
                 raise ValueError("Production PostgreSQL paroli kamida 24 belgidan iborat bo'lishi kerak")
             if self.telegram_bot_token and not self.telegram_webhook_secret:
                 raise ValueError("Telegram yoqilganda production webhook secret majburiy")
+            # TIBEX_PATIENT_PUBLIC_ACCESS_v1:
+            # Agar bemor portali ochiq bo'lmasa (patient_web_access=False),
+            # u holda local_only_enabled=false bo'lishi MANTIQSIZ — bu
+            # butun ilovani ochiq qilib qo'yadi. Ishlab chiqarishda ikkalasi
+            # birgalikda to'g'ri sozlanishi shart:
+            #   patient=true,  local_only=true   → tavsiya (bemor ochiq, xodim lokal)
+            #   patient=false, local_only=true   → to'liq lokal (LAN-only klinika)
+            #   patient=false, local_only=false  → BUTUN API ochiq — xavfli!
+            if not self.local_only_enabled:
+                raise ValueError(
+                    "Production muhitida TIBEX_LOCAL_ONLY_ENABLED=true bo'lishi shart "
+                    "(xodim API'lari faqat LAN'da). Bemor portali uchun "
+                    "TIBEX_PATIENT_WEB_ACCESS=true ni yoqing."
+                )
         return self
 
     @field_validator("env", mode="before")
@@ -244,6 +324,20 @@ class Settings(BaseSettings):
                 "TIBEX_COOKIE_SAMESITE faqat 'strict', 'lax' yoki 'none' bo'lishi mumkin"
             )
         return v
+
+    @field_validator("clinic_timezone", mode="before")
+    @classmethod
+    def _validate_clinic_timezone(cls, v):
+        # TIBEX_TIMEZONE_VALIDATION_v1: noto'g'ri TZ keyinroq `ZoneInfo(...)` da
+        # 500 xatosiga olib keladi (`payments.list_payments?today=true`,
+        # `close_shift`). Boshidanoq ishga tushishda tekshiramiz.
+        from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+        value = (v or "Asia/Tashkent").strip() or "Asia/Tashkent"
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError, TypeError) as exc:
+            raise ValueError(f"TIBEX_CLINIC_TIMEZONE noto'g'ri: {value!r}") from exc
+        return value
 
     @property
     def is_prod(self) -> bool:

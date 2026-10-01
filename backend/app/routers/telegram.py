@@ -9,9 +9,10 @@ Xavfsizlik: faqat private chatda Telegramning contact.user_id qiymati
 xabar yuboruvchining Telegram ID'siga teng bo'lsa, telefon DB bilan
 solishtiriladi. Login OTP faqat shu chatga yuboriladi.
 """
+import json
 import logging
-import secrets
-from datetime import datetime, timedelta, timezone
+import time
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from sqlalchemy import select
@@ -19,49 +20,88 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_db
 from ..deps import client_ip
-from ..models import OTPCode, Patient, TelegramLinkToken, User
+from ..models import Patient, TelegramLinkToken, User
 from ..security.audit import log_action
 from ..security.rate_limit import hit
-from ..security.passwords import hash_password_async
 from ..security.otp import normalize_phone
-from ..security.otp import OTP_TTL_SECONDS, generate_code, hash_code
 from ..security.telegram import (
     request_telegram_contact,
     send_telegram_code,
     send_telegram_text,
     verify_webhook_secret,
 )
+from ..services.patient_service import (
+    PatientAccountConflict,
+    get_or_create_patient_user,
+    issue_login_code,
+    unlink_telegram,
+)
 
 router = APIRouter()
 log = logging.getLogger("tibex.telegram")
 
 
+# Telegram serveri webhook ishlamay turgan paytda xabarlarni to'plab qo'yadi va
+# server qayta ishga tushganda hammasini birdan yuboradi. Eski /code
+# buyruqlaridan kod yuborilmasligi uchun faqat yangi xabarlar qabul qilinadi.
+CODE_REQUEST_MAX_AGE_SECONDS = 90
+CODE_REQUEST_COOLDOWN_SECONDS = 30
+
+
+def _parse_command(text: str, bot_username: str = "") -> tuple[str, str]:
+    """Xabar matnidan (buyruq, argument) ajratadi.
+
+    Faqat matn aynan `/buyruq` yoki `/buyruq@shu_bot` bilan boshlansa buyruq
+    hisoblanadi. `/codexyz` yoki boshqa botga mo'ljallangan `/code@boshqa_bot`
+    buyruq emas ("", "") qaytadi.
+    """
+    text = (text or "").strip()
+    if not text.startswith("/"):
+        return "", ""
+    parts = text.split(maxsplit=1)
+    head = parts[0].lower()
+    arg = parts[1].strip() if len(parts) > 1 else ""
+    if "@" in head:
+        head, _, target = head.partition("@")
+        if not bot_username or target != bot_username.lower().lstrip("@"):
+            return "", ""
+    return head, arg
+
+
+def _deliverable_patient(user: User | None) -> bool:
+    return bool(
+        user is not None
+        and user.active
+        and user.role_key == "patient"
+        and user.patient_id is not None
+        and user.telegram_chat_id
+    )
+
+
 async def _send_login_code(db: AsyncSession, user: User, ip: str) -> bool:
-    """Bir martalik kodni faqat ulangan Telegram chatiga yuboradi."""
+    """Bir martalik kodni faqat ulangan Telegram chatiga yuboradi.
+
+    FAQAT bemor o'zi so'raganda chaqirilishi kerak (botdagi /code buyrug'i).
+    Ulanish, /start, /status kabi jarayonlar bu funksiyani chaqirmaydi.
+    """
+    if not _deliverable_patient(user):
+        return False
+    chat_id = str(user.telegram_chat_id)
     phone = normalize_phone(user.login)
     try:
         await hit(f"rl:otp:phone:{phone}", limit=3, window=900)
-        await hit(f"rl:tg:otp:chat:{user.telegram_chat_id}", limit=3, window=900)
+        await hit(f"rl:tg:otp:chat:{chat_id}", limit=3, window=900)
     except HTTPException:
         return False
-    old_codes = (await db.execute(select(OTPCode).where(OTPCode.phone == phone, OTPCode.used == False))).scalars().all()  # noqa: E712
-    for old in old_codes:
-        old.used = True
-    code = generate_code()
-    otp = OTPCode(
-        phone=phone,
-        code_hash=hash_code(code, phone),
-        user_id=user.id,
-        expires_at=datetime.now(timezone.utc) + timedelta(seconds=OTP_TTL_SECONDS),
-        ip=ip,
-    )
-    db.add(otp)
-    await db.flush()
-    if not await send_telegram_code(user.telegram_chat_id, code):
+    code, otp = await issue_login_code(db, user, phone, ip)
+    # Kod bazaga saqlanganidan KEYIN yuboriladi: aks holda keyingi xatoda
+    # rollback bo'lib, bemorga bazada yo'q (ishlamaydigan) kod ketib qolardi.
+    await db.commit()
+    if not await send_telegram_code(chat_id, code):
         otp.used = True
         await db.flush()
         return False
-    await log_action(db, user=user.fullname, role="patient", action="otp_request", detail="Kirish kodi Telegram bot orqali yuborildi", ip=ip)
+    await log_action(db, user=user.fullname, role="patient", action="otp_request", detail="Kirish kodi Telegram bot orqali yuborildi (/code)", ip=ip)
     return True
 
 
@@ -90,15 +130,26 @@ async def telegram_webhook(
         log.warning("Telegram webhook: secret token mos kelmadi")
         return {"ok": True}
 
+    # TIBEX_TG_BODY_LIMIT_v1: Telegram serveri har bir update uchun
+    # odatda <10 KB yuboradi. 64 KB chegara bilan olamiz —
+    # katta payload (DoS urinishi yoki soxta so'rov) rad etiladi.
+    from ..security.input_fortress import read_body_limited
     try:
-        body = await request.json()
+        raw = await read_body_limited(request, 64 * 1024)
+        body = json.loads(raw) if raw else {}
+    except HTTPException:
+        return {"ok": True}
     except Exception:
         return {"ok": True}
 
-    message = body.get("message") or body.get("edited_message") or {}
+    # Tahrirlangan xabarlar (edited_message) e'tiborga olinmaydi: eski /code
+    # xabarini tahrirlash orqali kod qayta yuborilib ketmasligi kerak.
+    message = body.get("message") or {}
     chat = message.get("chat") or {}
     chat_id = chat.get("id")
     text = (message.get("text") or "").strip()
+    from ..config import get_settings
+    cmd, cmd_arg = _parse_command(text, get_settings().telegram_bot_username or "")
 
     if not chat_id:
         return {"ok": True}
@@ -140,27 +191,13 @@ async def telegram_webhook(
         if patient is None:
             await send_telegram_text(chat_id, "Bu telefon raqami bilan bemor kabineti topilmadi. Klinikaga murojaat qiling.")
             return {"ok": True}
-        user = (await db.execute(select(User).where(User.patient_id == patient.id))).scalar_one_or_none()
-        if user is None:
-            user = (await db.execute(select(User).where(User.login == phone))).scalar_one_or_none()
-            if user is not None and (user.role_key != "patient" or user.patient_id != patient.id):
-                await send_telegram_text(chat_id, "Bu raqam bemor akkauntiga xavfsiz bog'lanmadi. Klinikaga murojaat qiling.")
-                return {"ok": True}
-        if user is None:
-            # Faqat Telegram Contact orqali telefon egaligi isbotlangach
-            # akkaunt yaratiladi. Parol tasodifiy va foydalanuvchiga berilmaydi;
-            # bemor faqat Telegram OTP yoki admin kodi bilan kira oladi.
-            user = User(
-                fullname=patient.fullname,
-                login=phone,
-                password_hash=await hash_password_async(secrets.token_urlsafe(32)),
-                role_key="patient",
-                phone=phone,
-                patient_id=patient.id,
-                active=True,
-            )
-            db.add(user)
-            await db.flush()
+        # Akkaunt yo'q bo'lsa — faqat Telegram Contact orqali telefon egaligi isbotlangach
+        # yaratiladi (parol tasodifiy; bemor faqat Telegram OTP yoki admin kodi bilan kiradi).
+        try:
+            user = await get_or_create_patient_user(db, patient, phone)
+        except PatientAccountConflict:
+            await send_telegram_text(chat_id, "Bu raqam bemor akkauntiga xavfsiz bog'lanmadi. Klinikaga murojaat qiling.")
+            return {"ok": True}
         if not user.active or user.role_key != "patient" or user.patient_id != patient.id:
             await send_telegram_text(chat_id, "Bu bemor akkaunti hozir faol emas. Klinikaga murojaat qiling.")
             return {"ok": True}
@@ -174,13 +211,11 @@ async def telegram_webhook(
         user.telegram_chat_id = chat_id
         await db.flush()
         await log_action(db, user=user.fullname, role="patient", action="update", detail="Bemor Telegram kontaktini self-service orqali uladi", ip=ip)
-        if await _send_login_code(db, user, ip):
-            await send_telegram_text(chat_id, f"✅ Telegram ulandi, {user.fullname}. Birinchi kirish kodi yuborildi. Kod 5 daqiqa amal qiladi.")
-        else:
-            await send_telegram_text(chat_id, f"✅ Telegram ulandi, {user.fullname}. Kodni keyinroq olish uchun /code yuboring.")
+        # Kod bu yerda YUBORILMAYDI: faqat bemor /code yuborgandagina boradi.
+        await send_telegram_text(chat_id, f"✅ Telegram ulandi, {user.fullname}. Kirish kodini olish uchun /code yuboring.")
         return {"ok": True}
 
-    if text.startswith("/start") and len(text.split(maxsplit=1)) == 1:
+    if cmd == "/start" and not cmd_arg:
         linked = (await db.execute(select(User).where(User.telegram_chat_id == chat_id))).scalar_one_or_none()
         if linked and linked.active:
             await send_telegram_text(chat_id, f"✅ Telegram {linked.fullname} profiliga ulangan. Kirish kodi uchun /code yuboring.")
@@ -188,11 +223,11 @@ async def telegram_webhook(
             await request_telegram_contact(chat_id)
         return {"ok": True}
 
-    if text.startswith("/help"):
+    if cmd == "/help":
         await send_telegram_text(chat_id, HELP_TEXT)
         return {"ok": True}
 
-    if text.startswith("/status"):
+    if cmd == "/status":
         linked_user = (
             await db.execute(select(User).where(User.telegram_chat_id == chat_id))
         ).scalar_one_or_none()
@@ -208,7 +243,7 @@ async def telegram_webhook(
             )
         return {"ok": True}
 
-    if text.startswith("/unlink"):
+    if cmd == "/unlink":
         linked_user = (
             await db.execute(select(User).where(User.telegram_chat_id == chat_id))
         ).scalar_one_or_none()
@@ -217,22 +252,36 @@ async def telegram_webhook(
                 chat_id, "❌ Bu Telegram hech qanday profilga ulanmagan."
             )
             return {"ok": True}
-        linked_user.telegram_chat_id = None
-        await db.flush()
-        await log_action(
-            db,
-            user=linked_user.fullname,
-            role="patient",
-            action="update",
-            detail="Bemor Telegram ulanishini uzdi (/unlink)",
-            ip=ip,
-        )
+        await unlink_telegram(db, linked_user, ip, via="bot /unlink")
         await send_telegram_text(chat_id, "🔌 Telegram profilidan uzildi.")
         return {"ok": True}
 
-    if text.startswith("/code"):
+    if cmd == "/code":
+        # Kod faqat quyidagi barcha shartlar bajarilganda yuboriladi.
+        # 1) Faqat shaxsiy (private) chat, yuboruvchi = chat egasi.
+        if str(chat.get("type") or "") != "private" or not sender_id or str(sender_id) != chat_id:
+            return {"ok": True}
+        # 2) Eski (server o'chiq paytida to'planib qolgan) xabarlar e'tiborsiz.
+        msg_date = message.get("date")
+        if not isinstance(msg_date, int) or time.time() - msg_date > CODE_REQUEST_MAX_AGE_SECONDS:
+            log.info("Telegram /code: eski yoki sanasiz xabar e'tiborsiz qoldirildi")
+            return {"ok": True}
+        # 3) Telegram bir xil update'ni qayta yuborsa, ikkinchi marta ishlamaydi.
+        update_id = body.get("update_id")
+        if update_id is not None:
+            try:
+                await hit(f"tg:code:update:{update_id}", limit=1, window=3600)
+            except HTTPException:
+                return {"ok": True}
+        # 4) Ketma-ket bosishdan himoya (double-tap).
+        try:
+            await hit(f"tg:code:cooldown:{chat_id}", limit=1, window=CODE_REQUEST_COOLDOWN_SECONDS)
+        except HTTPException:
+            await send_telegram_text(chat_id, "Kod hozirgina yuborilgan. Bir necha soniyadan keyin qayta urinib ko'ring.")
+            return {"ok": True}
+        # 5) Chat faol bemor profiliga ulangan bo'lishi shart.
         linked_user = (await db.execute(select(User).where(User.telegram_chat_id == chat_id))).scalar_one_or_none()
-        if not linked_user or not linked_user.active or linked_user.role_key != "patient":
+        if not linked_user or not linked_user.active or linked_user.role_key != "patient" or linked_user.patient_id is None:
             await request_telegram_contact(chat_id)
             return {"ok": True}
         if await _send_login_code(db, linked_user, ip):
@@ -241,14 +290,13 @@ async def telegram_webhook(
             await send_telegram_text(chat_id, "Kodni hozir yubora olmadik yoki urinishlar chekloviga yetdingiz. Keyinroq qayta urinib ko'ring.")
         return {"ok": True}
 
-    if not text.startswith("/start"):
+    if cmd != "/start":
         await send_telegram_text(chat_id, "Noma'lum buyruq. Yordam uchun /help ni yuboring.")
         return {"ok": True}
 
     # Eski, qisqa muddatli portal tokenlari bilan yaratilgan havolalarni
     # yangilash zarur emas: ular oldingi ulash usuli uchun qo'llab-quvvatlanadi.
-    parts = text.split(maxsplit=1)
-    token_str = parts[1].strip() if len(parts) > 1 else ""
+    token_str = cmd_arg
     if not token_str:
         await request_telegram_contact(chat_id)
         return {"ok": True}

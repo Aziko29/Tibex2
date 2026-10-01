@@ -3,218 +3,97 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
 <title>TIBEX — Bemor kabineti</title>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-
-<script src="static/tibex-safe.js"></script>
-<script src="static/tibex-client.js"></script>
-<script src="static/tibex-clinic-info.js"></script>
-<script src="static/tibex-session.js"></script>
-<script src="static/tibex-settings.js"></script>
-<script src="static/tibex-console-theme.js"></script>
-
-<link rel="stylesheet" href="static/css/tibex-base.css">
-  <link rel="stylesheet" href="static/css/bemor-dashboard.css">
-<link rel="stylesheet" href="static/css/tibex-console.css">
+<link rel="stylesheet" href="static/css/bemor-profile.da20e97c.css">
 </head>
-<body class="patient-portal">
+<body>
 
-<div class="topbar">
-  <div class="logo">TIBEX · Bemor kabineti</div>
-  <div class="stat-chip blue"><span>Tashriflar:</span><b id="statAppt">0</b></div>
-  <div class="stat-chip purple"><span>Lab:</span><b id="statLab">0</b></div>
-  <div class="stat-chip"><span>Qarzdorlik:</span><b id="statDebt">0</b></div>
-  <div class="spacer"></div>
-  <button class="icon-btn" title="Chiqish">🚪</button>
-</div>
-
-<div class="tabs-bar">
-  <button class="tab active" data-view="summary">🏠 Bosh sahifa</button>
-  <button class="tab" data-view="appointments">📅 Tashriflarim <span class="badge" id="tabApptBadge">0</span></button>
-  <button class="tab" data-view="labs">🔬 Lab natijalar <span class="badge purple" id="tabLabBadge">0</span></button>
-  <button class="tab" data-view="payments">💳 To'lovlarim</button>
-  <button class="tab" data-view="profile">👤 Profilim</button>
-</div>
-
-<div class="main">
-  <aside class="sidebar">
-    <div class="sidebar-section">
-      <div class="sidebar-title">Umumiy holat</div>
-      <div class="stats-grid">
-        <div class="stat-box blue"><div class="v" id="sbAppt">0</div><div class="l">Tashriflar</div></div>
-        <div class="stat-box purple"><div class="v" id="sbLab">0</div><div class="l">Lab tahlil</div></div>
-        <div class="stat-box green"><div class="v" id="sbPaid">0</div><div class="l">To'langan</div></div>
-        <div class="stat-box red"><div class="v" id="sbDebt">0</div><div class="l">Qarz</div></div>
-      </div>
-    </div>
-
-    <div class="sidebar-section">
-      <div class="sidebar-title">Bemor</div>
-      <div class="d-flex items-center gap-10">
-        <div class="avatar-circle" id="sbAvatar">B</div>
-        <div>
-          <div class="fw-700 fs-13" id="sbUserName">—</div>
-          <div class="fs-11 text-muted" id="sbUserRole">Bemor</div>
-        </div>
-      </div>
-    </div>
-  </aside>
-
-  <div class="content">
-
-    <!-- SUMMARY -->
-    <div class="view active" data-view-content="summary">
-      <div class="block">
-        <div class="page-header"><div class="title">🏠 Umumiy ko'rsatkichlar</div></div>
-        <div class="overview-grid">
-          <div class="overview-card blue"><div class="v" id="ovAppt">0</div><div class="l">Jami tashriflar</div></div>
-          <div class="overview-card purple"><div class="v" id="ovLab">0</div><div class="l">Lab tahlillar</div></div>
-          <div class="overview-card green"><div class="v" id="ovPaid">0</div><div class="l">Jami to'langan</div></div>
-          <div class="overview-card red"><div class="v" id="ovDebt">0</div><div class="l">Joriy qarz</div></div>
-        </div>
-      </div>
-      <div class="block">
-        <div class="page-header"><div class="title">📅 Oxirgi tashriflar</div></div>
-        <div class="block-body">
-          <table class="data-table">
-            <thead><tr>
-              <th class="w-100">Sana</th>
-              <th>Shifokor</th>
-              <th class="w-200">Xizmat</th>
-              <th class="w-140">Holat</th>
-            </tr></thead>
-            <tbody id="recentApptBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- APPOINTMENTS -->
-    <div class="view" data-view-content="appointments">
-      <div class="block">
-        <div class="page-header"><div class="title">📅 Mening tashriflarim <span class="count" id="apptCount">0</span></div></div>
-        <div class="block-body">
-          <table class="data-table">
-            <thead><tr>
-              <th class="w-100">Sana</th>
-              <th class="w-70">Vaqt</th>
-              <th>Shifokor</th>
-              <th class="w-200">Xizmat</th>
-              <th class="w-140">Holat</th>
-              <th class="w-260">Tashxis</th>
-              <th class="w-100">To'langan</th>
-              <th class="w-100">Qarz</th>
-            </tr></thead>
-            <tbody id="apptBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- LABS -->
-    <div class="view" data-view-content="labs">
-      <div class="block">
-        <div class="page-header"><div class="title">🔬 Lab natijalarim <span class="count" id="labCount">0</span></div></div>
-        <div class="block-body">
-          <table class="data-table">
-            <thead><tr>
-              <th>Test</th>
-              <th class="w-130">Holat</th>
-              <th class="w-280">Natija</th>
-              <th class="w-140">Tasdiqlangan</th>
-            </tr></thead>
-            <tbody id="labBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- PAYMENTS -->
-    <div class="view" data-view-content="payments">
-      <div class="block">
-        <div class="page-header"><div class="title">💳 To'lovlarim <span class="count" id="paymentCount">0</span></div></div>
-        <div class="block-body">
-          <table class="data-table">
-            <thead><tr>
-              <th class="w-140">Sana</th>
-              <th class="w-140">Summa</th>
-              <th class="w-140">Usul</th>
-              <th class="w-140">Holat</th>
-            </tr></thead>
-            <tbody id="paymentBody"></tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-    <!-- PROFILE -->
-    <div class="view" data-view-content="profile">
-      <div class="block">
-        <div class="page-header">
-          <div class="title">👤 Mening profilim</div>
-          <div class="actions"><button class="btn primary" id="btnEditProfile">✏ Tahrirlash</button></div>
-        </div>
-        <div class="form-grid pad-16">
-          <div class="form-field"><label>F.I.Sh</label><div class="input bg-slate-50" id="pfFullname">—</div></div>
-          <div class="form-field"><label>Telefon</label><div class="input bg-slate-50" id="pfPhone">—</div></div>
-          <div class="form-field"><label>Yosh</label><div class="input bg-slate-50" id="pfAge">—</div></div>
-          <div class="form-field"><label>Jins</label><div class="input bg-slate-50" id="pfGender">—</div></div>
-          <div class="form-field"><label>Qon guruhi</label><div class="input bg-slate-50" id="pfBlood">—</div></div>
-          <div class="form-field grid-span"><label>Manzil</label><div class="input bg-slate-50" id="pfAddress">—</div></div>
-          <div class="form-field grid-span"><label>Allergiyalar</label><div class="input bg-slate-50" id="pfAllergies">—</div></div>
-          <div class="form-field grid-span"><label>Surunkali kasalliklar</label><div class="input bg-slate-50" id="pfChronic">—</div></div>
-        </div>
-      </div>
-      <div class="block">
-        <div class="page-header"><div class="title">📨 Telegram orqali kirish</div></div>
-        <div class="pad-16">
-          <div id="tgNotConfigured" class="text-muted hidden">Telegram bot hozircha sozlanmagan.</div>
-          <div id="tgLinked" class="hidden">
-            <p>✅ Telegram ulangan. Kirish kodlari Telegram bot orqali keladi.</p>
-            <button class="btn" id="btnTgUnlink">Uzish</button>
-          </div>
-          <div id="tgUnlinked" class="hidden">
-            <p>Botni oching, /start yuboring va Telegram taklif qilgan tugma orqali o'z telefon raqamingizni yuboring.</p>
-            <button class="btn primary" id="btnTgLink">✈️ Telegram botni ochish</button>
-            <div id="tgLinkBox" class="hidden mt-12">
-              <p>Botda <b>Start</b> bosing, so'ng o'z telefon kontakt raqamingizni yuboring.</p>
-              <button class="btn" id="btnTgRefreshStatus">🔄 Holatni tekshirish</button>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="block">
-        <div class="page-header"><div class="title">🔐 Kabinetga xavfsiz kirish</div></div>
-        <div class="pad-16">Bemor kabinetiga parol bilan emas, Telegram bot yuborgan bir martalik kod yoki administrator bergan kod bilan kiriladi. Kirish kodini olish uchun tizimdan chiqing va bemor kirish sahifasidan foydalaning.</div>
-      </div>
-    </div>
-
+<!-- ═══════════════════ TOPBAR ═══════════════════ -->
+<header class="bp-top">
+  <div class="bp-brand">
+    <span class="bp-brand-mark">T</span>
+    <span class="bp-brand-text">Bemor kabineti</span>
   </div>
-</div>
 
-<!-- MODAL: EDIT PROFILE (faqat telefon/manzil — admin ruxsat bergan maydonlar) -->
-<div class="modal-backdrop" id="modalEditProfile">
-  <div class="modal">
-    <div class="modal-head">
-      <h3>✏ Profilni tahrirlash</h3>
-      <button class="close" data-close>✕</button>
+  <div class="bp-top-actions">
+    <button class="bp-icon-btn" id="btnSettings" title="Sozlamalar" aria-label="Sozlamalar">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+    <button class="bp-user" id="btnUserMenu" aria-label="Foydalanuvchi menyusi">
+      <span class="bp-avatar" id="userAvatar">?</span>
+      <span class="bp-user-name" id="userName">…</span>
+    </button>
+  </div>
+</header>
+
+<!-- ═══════════════════ DESKTOP TABS ═══════════════════ -->
+<nav class="bp-tabs" id="bpTabs" role="tablist" aria-label="Bo'limlar"></nav>
+
+<!-- ═══════════════════ MAIN CONTENT ═══════════════════ -->
+<main class="bp-main" id="bpMain" role="tabpanel"></main>
+
+<!-- ═══════════════════ MOBILE BOTTOM NAV ═══════════════════ -->
+<nav class="bp-bottomnav" id="bpBottomNav" aria-label="Asosiy bo'limlar"></nav>
+
+<!-- ═══════════════════ SETTINGS DRAWER ═══════════════════ -->
+<div class="bp-backdrop" id="bpBackdrop"></div>
+<aside class="bp-drawer" id="bpDrawer" aria-hidden="true" role="dialog" aria-label="Sozlamalar">
+  <div class="bp-drawer-head">
+    <div>
+      <h3>Sozlamalar</h3>
+      <p class="bp-drawer-sub">Shaxsiy imtiyozlar va xavfsizlik</p>
     </div>
-    <div class="modal-body">
-      <div class="form-grid">
-        <div class="form-field"><label>Telefon</label><input class="input" id="editPhone" value="+998 "></div>
-        <div class="form-field grid-span"><label>Manzil</label><input class="input" id="editAddress"></div>
-      </div>
+    <button class="bp-icon-btn ghost" id="btnDrawerClose" aria-label="Yopish">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <path d="M18 6 6 18M6 6l12 12"/>
+      </svg>
+    </button>
+  </div>
+  <div class="bp-drawer-body" id="bpDrawerBody"></div>
+  <div class="bp-drawer-foot">
+    <span id="drawerVersion">TIBEX v1.0</span>
+    <button class="bp-btn danger sm" id="btnDrawerLogout">Chiqish</button>
+  </div>
+</aside>
+
+<!-- ═══════════════════ MODAL: PROFILE EDIT ═══════════════════ -->
+<div class="bp-modal-bg" id="profileEditModal" hidden>
+  <div class="bp-modal">
+    <div class="bp-modal-head">
+      <h3>Profilni tahrirlash</h3>
+      <button class="bp-icon-btn ghost" data-close-modal aria-label="Yopish">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
     </div>
-    <div class="modal-foot">
-      <button class="btn" data-close>Bekor qilish</button>
-      <button class="btn primary" id="btnSaveProfile">✓ Saqlash</button>
+    <div class="bp-modal-body">
+      <label class="bp-field">
+        <span class="bp-label">Telefon raqam</span>
+        <input type="tel" id="editPhone" placeholder="+998 90 123 45 67" inputmode="tel" autocomplete="tel">
+        <small class="bp-hint">Raqam o'zgarsa, kirish ham shu raqamga bog'lanadi</small>
+      </label>
+      <label class="bp-field">
+        <span class="bp-label">Manzil</span>
+        <input type="text" id="editAddress" placeholder="Toshkent sh., ..." autocomplete="street-address">
+      </label>
+    </div>
+    <div class="bp-modal-foot">
+      <button class="bp-btn ghost" data-close-modal>Bekor qilish</button>
+      <button class="bp-btn primary" id="btnSaveProfile">Saqlash</button>
     </div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
+<!-- ═══════════════════ TOAST ═══════════════════ -->
+<div class="bp-toast" id="bpToast" role="status" aria-live="polite"></div>
 
+<!-- ═══════════════════ SCRIPTS ═══════════════════ -->
+<script src="static/tibex-safe.js"></script>
 <script src="static/tibex-safe-bind.js"></script>
-<script src="bemor.js"></script>
+<script src="static/js/bemor.e308bce8.js"></script>
 </body>
 </html>

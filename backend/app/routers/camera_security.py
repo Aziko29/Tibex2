@@ -48,6 +48,15 @@ def _cleanup():
     for uid in list(_DISABLED_UNTIL.keys()):
         if _DISABLED_UNTIL[uid] < now:
             del _DISABLED_UNTIL[uid]
+    # TIBEX_CAMERA_FAILURES_CLEANUP_v1: `_record_failure` faqat list
+    # tarkibini filtrlaydi, lekin dict KALITI (user_id) abadiy qoladi.
+    # Har bir noyob user_id uchun bo'sh yoki eskirgan list osilib qoladi.
+    # 4x MAX_FAILURES_WINDOW dan eski yozuvlarni o'chiramiz.
+    _stale_cutoff = now - MAX_FAILURES_WINDOW * 4
+    for uid in list(_FAILURES.keys()):
+        arr = _FAILURES[uid]
+        if not arr or max(arr) < _stale_cutoff:
+            del _FAILURES[uid]
 
 
 def _fingerprint(request: Request) -> str:

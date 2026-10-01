@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel
-from sqlalchemy import select
+from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..db import get_db
@@ -17,21 +18,40 @@ from ..security.audit import log_action
 router = APIRouter()
 
 
+def _strip_required(value: str | None) -> str | None:
+    if value is None:
+        return value
+    value = value.strip()
+    if not value:
+        raise ValueError("Bo'sh bo'lmasligi kerak")
+    return value
+
+
 class DoctorIn(BaseModel):
-    name: str
-    specialty: str
-    phone: str = ""
-    price: int = 0
-    room: str = ""
+    name: str = Field(min_length=1, max_length=200)
+    specialty: str = Field(min_length=1, max_length=128)
+    phone: str = Field(default="", max_length=32)
+    price: int = Field(default=0, ge=0)
+    room: str = Field(default="", max_length=32)
+
+    @field_validator("name", "specialty")
+    @classmethod
+    def strip_text(cls, value: str) -> str:
+        return _strip_required(value)
 
 
 class DoctorPatch(BaseModel):
-    name: str | None = None
-    specialty: str | None = None
-    phone: str | None = None
-    price: int | None = None
-    room: str | None = None
+    name: str | None = Field(default=None, min_length=1, max_length=200)
+    specialty: str | None = Field(default=None, min_length=1, max_length=128)
+    phone: str | None = Field(default=None, max_length=32)
+    price: int | None = Field(default=None, ge=0)
+    room: str | None = Field(default=None, max_length=32)
     active: bool | None = None
+
+    @field_validator("name", "specialty")
+    @classmethod
+    def strip_text(cls, value: str | None) -> str | None:
+        return _strip_required(value)
 
 
 def _to_dict(d: Doctor) -> dict:
@@ -103,7 +123,14 @@ async def update_doctor(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Shifokor topilmadi")
 
     before = _to_dict(d)
-    for k, v in body.model_dump(exclude_unset=True).items():
+    data = body.model_dump(exclude_unset=True)
+    for key in ("name", "specialty", "price", "active"):
+        if key in data and data[key] is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"{key} bo'sh bo'lishi mumkin emas")
+    for key in ("phone", "room"):
+        if key in data:
+            data[key] = (data[key] or "").strip() or None
+    for k, v in data.items():
         setattr(d, k, v)
     await db.flush()
 
@@ -133,8 +160,23 @@ async def delete_doctor(
     d = (await db.execute(select(Doctor).where(Doctor.id == doctor_id))).scalar_one_or_none()
     if d is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Shifokor topilmadi")
+    linked = (
+        await db.execute(select(func.count()).select_from(User).where(User.doctor_id == doctor_id))
+    ).scalar_one()
+    if linked:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Shifokorga login akkaunt bog'langan — avval Xodimlar bo'limida akkauntni o'chiring yoki shifokorni nofaol qiling",
+        )
     before = _to_dict(d)
     await db.delete(d)
+    try:
+        await db.flush()
+    except IntegrityError as exc:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Shifokorning qabullari bor — o'chirish o'rniga nofaol qiling",
+        ) from exc
     await log_action(
         db,
         user=user.fullname,

@@ -22,3 +22,14 @@ backend/secrets/
 *.log
 *.deb
 snapshot.py
+.security-audit/
+.tibex_backup/
+
+public/
+
+# --- Dev artefaktlar (fixer.py tomonidan qo'shildi) ---
+.security_fix*_backup_*/
+.autofix_backup/
+.tibex_backup/
+.tibex_fix_backups/
+.security-audit/

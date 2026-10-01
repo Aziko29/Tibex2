@@ -1,8 +1,14 @@
 name: ci
 on: [push, pull_request]
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   backend:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:16
@@ -28,10 +34,13 @@ jobs:
       - run: bandit -r app -ll
       - run: pip-audit -r requirements.lock
       - name: Secret scan
-        working-directory: backend
+        # Repo ildizidan (pre-commit bilan bir xil yo'l). `detect-secrets scan --baseline` baseline'ni
+        # yangilaydi va YIQILMAYDI, shuning uchun yiqiladigan `detect-secrets-hook` ishlatiladi.
+        working-directory: .
         run: |
           pip install 'detect-secrets==1.5.0'
-          detect-secrets scan --baseline .secrets.baseline
+          test -f backend/.secrets.baseline || { echo "backend/.secrets.baseline yo'q: OPERATIONS.md dagi 'Secrets baseline' qadamini bajaring"; exit 1; }
+          git ls-files -z | xargs -0 detect-secrets-hook --baseline backend/.secrets.baseline
       - name: Create RBAC matrix test database
         env: { PGPASSWORD: ci }
         run: psql -h 127.0.0.1 -U postgres -c 'CREATE DATABASE tibex_rbac_test'
@@ -40,13 +49,22 @@ jobs:
           TEST_DATABASE_URL: postgresql+asyncpg://postgres:ci@127.0.0.1:5432/tibex_rbac_test
         run: pytest -q --cov=app
       - name: Alembic upgrade/downgrade/check
+        # alembic/env.py get_settings() ni chaqiradi: 4 ta majburiy kalit bo'lmasa ValidationError bilan yiqiladi.
+        # Kalitlar har yurishda tasodifiy yaratiladi (repoga sir yozilmaydi, detect-secrets tinch).
         run: |
+          export TIBEX_SECRET_KEY="$(openssl rand -hex 32)"
+          export TIBEX_MASTER_KEY_B64="$(openssl rand -base64 32)"
+          export TIBEX_BLIND_INDEX_KEY_B64="$(openssl rand -base64 32)"
+          export TIBEX_PASSWORD_PEPPER="$(openssl rand -hex 32)"
+          heads="$(alembic heads | grep -c '(head)')"
+          test "$heads" -eq 1 || { echo "Alembic'da $heads ta head bor (kutilgan: 1). alembic merge kerak."; alembic heads; exit 1; }
           alembic upgrade head
           alembic downgrade base
           alembic upgrade head
           alembic check
   frontend:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -56,6 +74,15 @@ jobs:
         run: |
           # Commit frontend/package-lock.json (`npm install --package-lock-only`), then switch to `npm ci`.
           if [ -f package-lock.json ]; then npm ci; else npm install --no-audit --no-fund; fi
-          node --test tests/xss.spec.js tests/snapshot-hash.spec.js
+          npm test
+      - name: Asset nomlari tarkibga mos (kesh xavfsizligi)
+        run: node frontend/tools/hash_assets.js --check
       - run: npm i --no-save eslint@8 eslint-plugin-no-unsanitized
       - run: npx eslint -c frontend/.eslintrc.json "frontend/static/**/*.js" "frontend/*.js" --ignore-pattern "**/vendor/**"
+  nginx:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: nginx -t va CSP bir xilligi
+        run: bash backend/deploy/check_nginx.sh

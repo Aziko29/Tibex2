@@ -2,6 +2,12 @@
 
 Bu hujjat `BIT 6` nusxasida bajarilgan ishlarni qayd etadi. Haqiqiy server, Docker konteyneri, PostgreSQL/Redis ma'lumotlari va tashqi xizmatlarga ulanilmadi.
 
+## Admin "Resurslar" (uskuna / reagent / integratsiya) tuzatishlari
+
+- Backend: `app/inventory_validation.py` (uchala router uchun umumiy validatsiya, 422), `app/integration_access.py` (yagona serializator, laborant faqat `device`, kassir faqat `payment`), `integrations.view` laborant/kassirga (`scripts/init_db.py` + alembic `inv20261001_1000`).
+- Integratsiya: "Sinxronlash" haqiqiy ulanish tekshiruvi (TCP/TLS), `device` turi uchun `tcp://`, `mllp://`, `http://` va LAN (`TIBEX_INTEGRATION_LAN_CIDRS`); bo'sh `api_key` saqlangan kalitni o'chiradi.
+- Frontend: saqlash/o'chirish/sinxronlash natijasi kutiladi (xatoda qator qaytadi), "Muddati yaqin" 30 kun, lot bo'yicha qidiruv, uskuna formasida yangi sana maydonlari, API kalitni o'chirish belgisi, `equipService`/`reagentAlert` tumblerlari admin panelda ishlaydi. `admin.80c0949c.js`, `lab.215d8dfd.js` yangi hash bilan.
+
 ## Bajarildi
 
 - `payments.py` ichida ishlatilgan, lekin import qilinmagan `get_settings` importi qo'shildi.
@@ -380,3 +386,100 @@ Known limit: the test covers `${...}` templates only; string-concatenation HTML 
 | static/tibex-smart-camera.js:689 | `'<div id="sc9Reader"></div>' + '<div class="sc9-overlay"><div class="s` | no | static markup / constants only — no change | manual review |
 | static/tibex-ultimate-scanner.js:529 | `'<div class="sc7-head">' + ' <h3>📷 Skaner</h3>' + ' <span class="sc7-e` | no | static markup / constants only — no change | manual review |
 | tests/xss.spec.js:25 | `'<td>${w.esc(payload)}</td><input value="${w.esc(payload)}">'` | no (test fixture) | test code — payload harness, no change | xss.spec.js |
+
+## Tuzatish rejasi — 1-qism (A bosqich)
+
+| Band | O'zgarish | Tekshiruv |
+|---|---|---|
+| A1 | `backend/deploy/tibex.service`: `ReadWritePaths=-/opt/tibex/backend/backups` (boshiga `-`); `docs/OPERATIONS.md` ga `install -d -o tibex -g tibex -m 750 ...` qadami | `systemd-analyze verify` faqat yo'q `gunicorn` binarysi haqida ogohlantirdi (bu muhitda venv yo'q); papka yo'q holatda `systemctl start tibex` **serverda tekshirilmagan** |
+| A2 | `frontend/tools/hash_assets.js` (sha256, CRLF→LF, 8 hex; `--check`), 23 ta js/css qayta nomlandi, 8 ta HTML havolasi yangilandi (eski `?v=` olib tashlandi), `frontend/tests/asset-hash.spec.js`, CI'ga `hash_assets.js --check`, 3 ta CSS izohidagi eski nom `<hash>` ga almashtirildi | `node --test tests/asset-hash.spec.js tests/snapshot-hash.spec.js` 9/9 o'tdi; brauzerda **tekshirilmagan** |
+| A3 | Baseline yo'li `backend/.secrets.baseline` ga birlashtirildi (pre-commit + CI); CI `detect-secrets-hook` bilan yiqiladigan bo'ldi va fayl yo'q bo'lsa aniq xabar beradi; `OPERATIONS.md` ga yaratish/audit qadami | baseline va `package-lock.json` **yaratilmadi** (tarmoq yo'q); shuning uchun secret-scan CI'da baseline commit qilinmaguncha qizil bo'ladi |
+
+## Tuzatish rejasi — 2-qism (B bosqich: CSP, JS ichidagi stillar)
+
+| Band | O'zgarish | Tekshiruv |
+|---|---|---|
+| B1 | 6 ta JS dagi `createElement("style")` bloklari (7 joy: `tibex-settings.js` da ikkita) `static/css/tibex-{password,notifications,settings,session,realtime-pro,smart-camera}.<hash>.css` ga ko'chirildi; JS dan inject funksiyalari va chaqiruvlari olib tashlandi; CSS matni asl manbadan aynan olingan (har qator HEAD dagi manbada topildi, `{`/`}` balansi 0) | `node --check` 6/6 |
+| B2 | `<link>` lar `</head>` oldiga (JS ni yuklovchi sahifalarga): bemor 2, kassa/qabulxona/shifokor 5, labaratoriya 6 ta. Oxirgi o'rin avvalgi injektsiya kaskadini saqlaydi. `hash_assets.js` yangi fayllarni ham hash'ladi | `hash_assets.js --check` OK |
+| B3 | Regressiya: `frontend/tests/csp-inline-style.spec.js` (jsdom shart emas), `backend/tests/test_integration_consistency.py` ga 2 test; ikkalasida ham yetim 4 fayl (`tibex-barcode-camera`, `tibex-realtime`, `tibex-ultimate-scanner`, `tibex-fortress`) allowlist'da va hech bir HTML ulamasligi tekshiriladi (E bosqichda o'chiriladi). CI va `npm test` ga qo'shildi | node 13/13; 3 ta pytest funksiya to'g'ridan-to'g'ri chaqirildi (pytest bu muhitda yo'q) |
+| B4 | `frontend/tools/serve_with_csp.js`: prod CSP ni `deploy/nginx.conf` dan o'qib beradigan dev server (`npm run serve:csp`) | quyida |
+
+**Brauzer tekshiruvi (Chromium 1194, prod CSP, `securitypolicyviolation` hodisalari + computed style).** Asl (HEAD) nusxada bemor/kassa/lab/qabulxona/shifokor sahifalarida modal/lock/settings/danger elementlari `position: static` (stil bloklangan) va `style-src-elem inline` buzilishlari 3–6 tadan bor edi; tuzatilgandan keyin hammasi `position: fixed` va `style-src-elem` buzilishi 0. Lab sahifasida `sc9-modal` ham `fixed`. Qolgan 1–2 ta `connect-src` buzilishi test artefakti: dev server 5511 portda, klient esa API'ni `127.0.0.1:8000` deb oladi (prod'da same-origin). Firefox'da va haqiqiy login bilan (API javoblari mock `{}`) tekshirilmadi; `admin.html`/`login.html` bu skriptlarni yuklamaydi.
+
+## Tuzatish rejasi — 3-qism (C bosqich: CI)
+
+| Band | O'zgarish | Tekshiruv |
+|---|---|---|
+| C1 | `ci.yml` alembic qadami: `alembic/env.py` `get_settings()` ni chaqiradi, CI esa 4 ta majburiy kalitni (`SECRET_KEY`, `MASTER_KEY_B64`, `BLIND_INDEX_KEY_B64`, `PASSWORD_PEPPER`) bermagani uchun qadam `ValidationError` bilan yiqilardi. Kalitlar endi `openssl rand` bilan har yurishda yaratiladi (repoda sir yo'q). Qadam boshida `alembic heads` = 1 tekshiruvi | statik; **CI da yurgizilmagan** (alembic/postgres yo'q) |
+| C2 | `backend/deploy/check_nginx.sh` + CI'da yangi `nginx` job: `nginx -t` (docker `nginx:1.27-alpine`, vaqtinchalik self-signed sertifikat, http{} wrapper) va 3 ta CSP nusxasi bir xilligi | CSP qismi lokal yurdi va o'zgartirilgan nusxada yiqildi; `nginx -t` **yurgizilmagan** (nginx/docker yo'q) |
+| C3 | `ci.yml`: `permissions: contents: read`, `concurrency` (eski yurishlar bekor), job `timeout-minutes`, frontend test ro'yxati `npm test` ga birlashtirildi (package.json bilan ikki joyda takrorlanmaydi) | YAML parse OK |
+| C4 | `test_integration_consistency.py` ga 2 test: CI alembic qadamida kalitlar bor va `nginx` job/CSP bir xil. Ikkalasi eski `ci.yml` da yiqilishi tekshirildi | 13 test funksiya to'g'ridan-to'g'ri chaqirildi, hammasi o'tdi |
+
+## Tuzatish rejasi — 4-qism, D bosqich (dev-tools auditi)
+
+Eslatma: reja matni zipda yo'q edi; D bosqich `dev-tools/` auditi deb qabul qilindi (1-qismda `autofix_admin.py` "alohida audit qismiga" qoldirilgan edi). `dev-tools/` `.gitignore` da, shuning uchun bu o'zgarishlar git'ga tushmaydi.
+
+| Band | O'zgarish | Tekshiruv |
+|---|---|---|
+| D1 | `autofix_admin.py`: import paytidayoq ishlaydi, admin fayllarini qayta yozadi va `admin.*.js/css` ni o'chiradi (A bosqichdan beri hash'langan `admin.<hash>.*` ham). Sukut bo'yicha to'xtaydigan qopqoq (`--force-revert-hashing`) qo'shildi | ishga tushirildi: exit 2, `frontend/` sha1 o'zgarmadi, zaxira papkasi yaratilmadi |
+| D2 | `demo.py`: `static/js/admin.js` qat'iy yo'li hash'langan nomni topmasdi ("TOPILMADI"). `admin.<8hex>.js` ni o'zi topadi; eski docstring nomlari tuzatildi | `--dry-run` endi `admin.1b0ae177.js` ni topadi |
+| D3 | `snapshot.py`: `secrets/` va `backups/` papkalari, `.env.*` (namunadan tashqari), `*.secret`, `*-key.txt`, `*.baseline` snapshotga kirmaydi (`secrets/db.txt` kabi `.txt` fayllar oldin to'liq yozilardi) | sinov papkasida: 0 ta sir chiqdi, `keep.txt` va `.env.example` qoldi |
+| D4 | `security_audit.py` `.security-audit/` ga yozadi (gitleaks.json xom sirlar bilan), lekin u `.gitignore` da yo'q edi: qo'shildi (`.tibex_backup/` ham). Docstring nomi tuzatildi | test |
+| D5 | `backup_db.py`: `sys.path` repo ildiziga ko'rsatardi, `app` esa `backend/` da, ya'ni `ImportError`. Yo'l tuzatildi | faqat `py_compile`; DB bilan **yurgizilmagan** |
+| D6 | `dev-tools/README.md` ga skriptlar jadvali; `test_integration_consistency.py` ga 1 test (`.gitignore` har doim, qopqoq `dev-tools/` bo'lsa) | 14/14 o'tdi; qopqoq olib tashlanganda test yiqildi |
+
+**Ochiq, o'zgartirilmadi:** (1) `demo.py` FIX-1 (`loadHealth`) `admin.<hash>.js` da hali qo'llanmagan va qo'llangandan keyin ham `check()` false qaytaradi. Bu xatti-harakat o'zgarishi, shuning uchun `--dry-run` dan boshqa yurgizilmadi. (2) `backend/pyproject.toml` da `tibex-backup = "scripts.backup_db:main"` bor, lekin `backend/scripts/backup_db.py` yo'q: konsol skripti `ImportError` beradi. Yo'lni olib tashlash yoki fayl yaratish kerak (qaror sizda).
+
+## Tuzatish rejasi — 4-qism, E bosqich (yetim fayllarni o'chirish)
+
+Eslatma: reja matni zipda yo'q edi; E bosqich B/A bosqich xabarlarida qoldirilgan qaror deb qabul qilindi: hech bir HTML ulamaydigan fayllarni o'chirish. Hammasi git'da (`baseline` commit) bor, kerak bo'lsa `git checkout HEAD -- <fayl>` bilan qaytadi.
+
+| Band | O'zgarish | Tekshiruv |
+|---|---|---|
+| E1 | 11 ta fayl o'chirildi: `static/tibex-barcode-camera.js`, `tibex-camera-secure.js`, `tibex-fortress.js`, `tibex-realtime.js`, `tibex-ultimate-scanner.js`, `static/js/admin-mobile-sidebar.<hash>.js`, `admin-shortcuts.<hash>.js`, `static/css/tibex-modern-theme.<hash>.css` (CHANGES.md 192-qatordagi 8 ta) va yangi topilgan 3 ta stub: `static/app.js`, `static/styles.css`, `static/login.js` (92/112/88 bayt, ichida faqat "hozircha ishlatilmaydi" izohi) | har bir fayl bo'yicha: hech bir HTML/JS da ulanmagan (aniq yo'l bo'yicha qidiruv, HEAD dagi HTML larda ham) |
+| E2 | Testlarda 4 fayllik allowlist olib tashlandi va umumiy qoida qo'yildi: `static/**` (vendor tashqari) dagi HAR BIR fayl kamida bitta HTML da ulangan bo'lishi shart. `frontend/tests/csp-inline-style.spec.js` va `test_integration_consistency.py` | o'chirishdan oldin yiqildi (yetimlar bor), keyin o'tdi; `app.js` ni qaytarib qo'yganda yana yiqildi; 13/13 node, 15/15 python funksiya |
+| E3 | `frontend/docs/README.md` dan `tibex-fortress.js` qatori olib tashlandi | grep: kod/hujjatda o'chirilgan nomlarga havola qolmadi (CHANGES.md va dev-tools tashqari) |
+
+Ta'sir: hozirgi 7 ta HTML dagi barcha `src`/`href` nishonlari mavjud (0 ta yo'q), `hash_assets.js --check` OK va yetim ogohlantirishlari yo'q. Yuqoridagi innerHTML inventar jadvalidagi 8 qator (`tibex-barcode-camera`, `tibex-fortress`, `tibex-ultimate-scanner`) endi o'chirilgan fayllarga tegishli: tarixiy yozuv sifatida qoldirildi.
+
+**Qaror talab qiladigan funksiya yo'qolishi:** `tibex-fortress.js` (monitoring paneli `/api/monitoring/*`) va `tibex-ultimate-scanner.js`/`tibex-barcode-camera.js` (skaner) hech bir sahifaga ulanmagan edi, ya'ni foydalanuvchi uchun hech narsa o'zgarmaydi. Agar monitoring paneli kerak bo'lsa, uni qaytarib, `<style>` ni CSS'ga ko'chirib ulash kerak (`git checkout HEAD -- frontend/static/tibex-fortress.js`).
+
+## Qoldiq: lock va baseline (tarmoq kerak)
+
+`frontend/package-lock.json` va `backend/.secrets.baseline` bu muhitda yaratilmadi (npm registry 403, `detect-secrets` o'rnatilmaydi); qo'lda yozilgan soxta fayl xavfli bo'lardi (lock'da integrity hash'lar, baseline formati). Ularni yaratadigan skript qo'shildi: `tools/bootstrap_lockfiles.py` (`git add -A` dan keyin ishga tushiriladi). Skript **yurgizilmagan** (tarmoq yo'q); faqat `py_compile` va "kuzatilmagan fayllar" tekshiruvi ko'rildi. `detect-secrets audit` qo'lda bajariladi.
+
+
+## Backend ishga tushmasligi tuzatildi (TIB 1)
+- `Dockerfile`: gunicorn `0.0.0.0:8000` da tinglaydi; `--forwarded-allow-ips` Docker gateway'ni ham qamraydi.
+- `docker-compose.yml`: `extra_hosts: host.docker.internal:host-gateway`.
+- `secrets/`: barcha kalitlar qayta generatsiya qilindi; `database_url.txt` → `host.docker.internal`, `redis_url.txt` → `redis`. `gen_secrets.py` shunga moslandi.
+- `.env.public`: `TIBEX_TRUSTED_PROXY_IPS` ga Docker subnetlari, yangi `TIBEX_METRICS_TOKEN`. `.env` (lokal) kalitlari ham yangilandi.
+- `requirements.txt` gunicorn 26.2.0 (lock bilan bir xil); `pyproject.toml` packages ga `app.middleware`, `app.services`.
+- Tasodifiy `backend/]` fayli o'chirildi; `test_security_regressions.py` dagi eskirgan `network_mode: host` tekshiruvi yangilandi.
+- Tekshirilmagan: `docker compose up`, haqiqiy Postgres/Redis ulanishi (sandboxda Docker va tarmoq yo'q).
+- `docker-compose.yml`: Redis healthcheck parol bilan (`requirepass` yoqilgan, aks holda `depends_on: service_healthy` backend'ni bloklashi mumkin edi).
+
+## Shifokor bo'limi: sozlamalar va chiqish standartlashtirildi
+
+- `shifokor.html`: 🚪 tugma `id="btnLogout"`, `type="button"`, `aria-label` bilan; `?` tugmasi ham `type="button"`. `doctor.js` yangi hash bilan (`doctor.a68f0dbc.js`).
+- `static/tibex-session.js`: 🚪 tugma endi `CURRENT_USER` kelishini KUTMAYDI (DOM tayyor bo'lganda ulanadi, 0.5s va 2s da qayta tekshiriladi). Logout javobi 401 bo'lsa (sessiya allaqachon tugagan) login sahifasiga o'tadi; boshqa xatoda avvalgidek toast ko'rsatadi va sahifada qoladi. Bu barcha xodim sahifalariga ta'sir qiladi.
+- `static/tibex-settings.js`: ⚙️ tugma standart joyga qo'yiladi (🚪 dan oldin), `id="btnSettings"`. Sozlamalar oynasiga faqat shifokor sahifasida ko'rinadigan "🩺 Shifokor ish oynasi" bo'limi qo'shildi: "Boshlang'ich bo'lim" (Navbat / Bugun / Bemorlar / Lab / Tarix).
+- `static/js/doctor.*.js`: sahifa ochilganda tanlangan boshlang'ich bo'limga o'tadi.
+- `static/tibex-password.js`: topbar tugmasi joylashuvi standartga keltirildi (hozir bu tugma ishlatilmaydi; parol oynasi Sozlamalar ichidagi 🔑 tugma orqali ochiladi).
+
+## TIBEX_QABULXONA_FULL_v1 — Faza 1 (qabulxona o'z joyi)
+- qabulxona.html: tablar "🛎 Jonli navbat", "🗓 Jadval"; sidebar "Qabulxona vositalari" (Tezkor ro'yxatga olish, Bemor qidirish, Kechikkanlar, Chek); modallar; topbar `type="button"`, `#btnLogout`.
+- static/js/reception.d901cd3e.js -> reception.b439652e.js: `renderAppointments` dagi e'lon qilinmagan `search` (ReferenceError) tuzatildi.
+- YANGI static/js/reception-full.6e6a76de.js, static/css/reception-full.8dbec817.css (kanban, jadval, skeleton/bo'sh/xato holatlari, print-CSS chek).
+- static/tibex-settings.js: DEFAULTS + "🗂️ Qabulxona ish oynasi" bo'limi (faqat `__TIBEX_CLIENT_ROLE__ === "reception"`).
+- Holat tugmalari backend state_machine.py ga mos (qabulxona: waiting/arrived -> delayed, waiting/delayed -> arrived). Bekor/Kelmadi va sabab — Faza 2. Backend o'zgartirilmadi.
+
+## TIBEX_QABULXONA_FULL_v1 — Faza 2 (interaktiv funksiyalar)
+- reception.b439652e.js -> reception.e45f9111.js: jadval qatorlari `QF.rowActions`ga o'tdi (backend ruxsat bermaydigan "▶ Boshlash" olib tashlandi).
+- reception-full.6e6a76de.js -> reception-full.a80ffcac.js; reception-full.8dbec817.css -> reception-full.7fce8378.css.
+- tibex-client.js: `_api` xatosiga `err.status` qo'shildi (1 qator; xato kodlarini xaritalash uchun zarur).
+- Bemorlar: validatsiya, +998 avto-format, takror aniqlash, sahifalash (25), filtrlar (qarzdor/bugun kelganlar), o'chirish (tasdiq), bemor kabineti (create/reset).
+- Navbat: faol shifokor/xizmat, o'tgan vaqt va band slot tekshiruvi, Bekor/Kelmadi + sabab, yakuniy holat 🔒.
+- To'lov: discount_limit/QQS /api/settings dan, qisman to'lov, Idempotency-Key, Excel eksport (reports.export).
+- Umumiy: focus trap, fokusni qaytarish, xato xaritasi (403/404/409/422/429/5xx), tugma busy-himoyasi.
+- Yangi test: frontend/tests/reception-full.spec.js (5/5).

@@ -1,10 +1,10 @@
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from datetime import datetime, timezone
 
-from sqlalchemy import delete as sa_delete, select
+from sqlalchemy import delete as sa_delete, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,19 +21,46 @@ from ..security.anti_idor import require_patient_access
 from ..security.audit import audit_view, log_action
 from ..security.otp import normalize_phone
 from ..security.passwords import check_password_strength, hash_password_async
+from ..services.patient_service import build_patient_user, change_patient_phone, patient_to_dict
 
 router = APIRouter()
 
 
+def _validate_patient_phone(value: str) -> str:
+    digits = re.sub(r"\D", "", value or "")
+    if not 9 <= len(digits) <= 15:
+        raise ValueError("Telefon raqam to'liq emas (kamida 9 ta raqam)")
+    return value.strip()
+
+
+def _validate_patient_name(value: str | None) -> str | None:
+    if value is None:
+        return value
+    value = value.strip()
+    if not value:
+        raise ValueError("F.I.Sh bo'sh bo'lmasligi kerak")
+    return value
+
+
 class PatientIn(BaseModel):
-    fullname: str
-    phone: str
-    age: int = 0
-    gender: str = "Erkak"
-    blood: str = "Noma'lum"
-    address: str = ""
+    fullname: str = Field(min_length=1, max_length=200)
+    phone: str = Field(max_length=32)
+    age: int = Field(default=0, ge=0, le=150)
+    gender: str = Field(default="Erkak", max_length=16)
+    blood: str = Field(default="Noma'lum", max_length=8)
+    address: str = Field(default="", max_length=500)
     allergies: list[str] = []
     chronic: list[str] = []
+
+    @field_validator("fullname")
+    @classmethod
+    def check_fullname(cls, value: str) -> str:
+        return _validate_patient_name(value)
+
+    @field_validator("phone")
+    @classmethod
+    def check_phone(cls, value: str) -> str:
+        return _validate_patient_phone(value)
 
     # Bemor kabineti uchun (ixtiyoriy)
     create_account: bool = False
@@ -54,28 +81,27 @@ class PatientIn(BaseModel):
 
 
 class PatientPatch(BaseModel):
-    fullname: str | None = None
-    phone: str | None = None
-    age: int | None = None
-    gender: str | None = None
-    blood: str | None = None
-    address: str | None = None
+    fullname: str | None = Field(default=None, min_length=1, max_length=200)
+    phone: str | None = Field(default=None, max_length=32)
+    age: int | None = Field(default=None, ge=0, le=150)
+    gender: str | None = Field(default=None, max_length=16)
+    blood: str | None = Field(default=None, max_length=8)
+    address: str | None = Field(default=None, max_length=500)
     allergies: list[str] | None = None
     chronic: list[str] | None = None
 
+    @field_validator("fullname")
+    @classmethod
+    def check_fullname(cls, value: str | None) -> str | None:
+        return _validate_patient_name(value)
 
-def _to_dict(p: Patient) -> dict:
-    return {
-        "id": p.id,
-        "fullname": p.fullname,
-        "phone": p.phone_enc,
-        "age": p.age,
-        "gender": p.gender,
-        "blood": p.blood,
-        "address": p.address,
-        "allergies": p.allergies or [],
-        "chronic": p.chronic or [],
-    }
+    @field_validator("phone")
+    @classmethod
+    def check_phone(cls, value: str | None) -> str | None:
+        return value if value is None else _validate_patient_phone(value)
+
+
+_to_dict = patient_to_dict  # xodimlar ko'rinishi: "login" maydonisiz
 
 
 def _like_escape(q: str) -> str:
@@ -104,8 +130,18 @@ async def list_patients(
         stmt = stmt.where(Patient.id == (user.patient_id or -1))
     elif user.role_key not in {"admin", "superadmin", "reception", "cashier"}:
         stmt = stmt.where(Patient.id == -1)
+    q = q.replace("\x00", "").strip() if q else q  # NUL bayt PostgreSQL'da 500 beradi
     if q:
-        stmt = stmt.where(Patient.fullname.ilike(f"%{_like_escape(q)}%", escape="\\"))
+        conds = [Patient.fullname.ilike(f"%{_like_escape(q)}%", escape="\\")]
+        # Telefon shifrlangan: faqat blind-index orqali to'liq raqam bo'yicha qidiriladi
+        digits = re.sub(r"\D", "", q)
+        if len(digits) >= 9:
+            phone = normalize_phone(q)
+            if phone:
+                conds.append(Patient.phone_bidx == phone)
+        if digits and len(digits) <= 9 and q.strip().lstrip("#").isdigit():
+            conds.append(Patient.id == int(digits))
+        stmt = stmt.where(or_(*conds))
     rows = (await db.execute(stmt)).scalars().all()
     await audit_view(db, user, request, f"patients list count={len(rows)}")
     return [_to_dict(p) for p in rows]
@@ -162,7 +198,18 @@ async def create_patient(
         chronic=body.chronic,
     )
     db.add(p)
-    await db.flush()
+    try:
+        await db.flush()
+    except IntegrityError as exc:
+        # TIBEX_PATIENT_PHONE_RACE_FIX_v1: avval `phone_bidx` ustunida
+        # unique constraint yo'q, lekin app-level check bor. Ikki parallel
+        # so'rov bir vaqtda bir xil telefon bilan bemor yaratishga urinsa,
+        # ikkinchisi IntegrityError bilan 500 olardi (yashirin xato).
+        # Endi to'g'ri 409 qaytaramiz.
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "Bu telefon bilan bemor allaqachon mavjud (parallel so'rov)",
+        ) from exc
     await db.refresh(p)
 
     # ─── Ixtiyoriy: bemor kabineti uchun account ───
@@ -180,16 +227,7 @@ async def create_patient(
 
         # Validated by PatientIn.validate_patient_account; never issue a known default credential.
         assert body.account_password is not None
-        password = body.account_password
-        db.add(User(
-            fullname=body.fullname,
-            login=phone_norm,
-            password_hash=await hash_password_async(password),
-            role_key="patient",
-            phone=phone_norm,
-            patient_id=p.id,
-            active=True,
-        ))
+        db.add(await build_patient_user(p, phone_norm, body.account_password))
         account_created = True
 
     await db.flush()
@@ -231,38 +269,16 @@ async def update_patient(
 
     before = _to_dict(p)
     data = body.model_dump(exclude_unset=True)
+    for key in ("fullname", "phone", "age", "gender", "blood"):
+        if key in data and data[key] is None:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"{key} bo'sh bo'lishi mumkin emas")
+    for key in ("address", "allergies", "chronic"):
+        if key in data and data[key] is None:
+            data[key] = "" if key == "address" else []
 
     if "phone" in data:
-        phone = data.pop("phone")
-        phone_norm = normalize_phone(phone)
-        if phone_norm:
-            # Boshqa bemorda bunday telefon bormi?
-            existing = (
-                await db.execute(
-                    select(Patient).where(
-                        Patient.phone_bidx == phone_norm,
-                        Patient.id != patient_id,
-                    )
-                )
-            ).scalar_one_or_none()
-            if existing is not None:
-                raise HTTPException(
-                    status.HTTP_409_CONFLICT,
-                    f"Bu telefon boshqa bemorga tegishli: {existing.fullname}",
-                )
-            p.phone_enc = phone_norm
-            p.phone_bidx = phone_norm
-
-            # Agar bemorning user yozuvi bo'lsa — login'ni ham yangilaymiz
-            linked_user = (
-                await db.execute(select(User).where(User.patient_id == patient_id))
-            ).scalar_one_or_none()
-            if linked_user is not None:
-                linked_user.login = phone_norm
-                linked_user.phone = phone_norm
-        else:
-            p.phone_enc = phone
-            p.phone_bidx = phone
+        # Bemor + kabinet logini sinxron o'zgaradi (qoidalar servisda).
+        await change_patient_phone(db, p, data.pop("phone"), strict=False, reveal_owner=True)
 
     for k, v in data.items():
         setattr(p, k, v)
@@ -305,6 +321,32 @@ async def delete_patient(
     if linked_user is not None:
         linked_user.active = False
         linked_user.patient_id = None
+        # TIBEX_PATIENT_DELETE_REVOKE_SESSIONS_v1: `active=False` ni
+        # `user_problem()` ushlaydi, lekin DB'da osilib qolgan sessiya
+        # qatorlari (audit chalkashligi, xotira) qolib ketardi.
+        from datetime import datetime as _dt, timezone as _tz
+        from sqlalchemy import update as _sa_update
+        _now = _dt.now(_tz.utc)
+        linked_user.session_valid_after = _now
+        _revoked_jtis = (await db.execute(
+            select(DBSession.jti).where(
+                DBSession.user_id == linked_user.id,
+                DBSession.revoked_at.is_(None),
+            )
+        )).scalars().all()
+        await db.execute(
+            _sa_update(DBSession)
+            .where(DBSession.user_id == linked_user.id, DBSession.revoked_at.is_(None))
+            .values(revoked_at=_now)
+        )
+        await db.flush()
+        if _revoked_jtis:
+            try:
+                from ..realtime import publish_session_revoked as _psr
+                for _j in _revoked_jtis:
+                    await _psr(_j)
+            except Exception:
+                pass
 
     before = _to_dict(p)
     # 25-band: yumshoq o'chirish. Payment/Refund va tarix saqlanadi.
@@ -374,15 +416,7 @@ async def create_account(
             "Bu telefon boshqa user uchun band",
         )
 
-    acc = User(
-        fullname=p.fullname,
-        login=p.phone_enc,
-        password_hash=await hash_password_async(body.password),
-        role_key="patient",
-        phone=p.phone_enc,
-        patient_id=p.id,
-        active=True,
-    )
+    acc = await build_patient_user(p, p.phone_enc, body.password)
     db.add(acc)
     await db.flush()
 

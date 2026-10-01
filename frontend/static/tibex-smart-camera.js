@@ -66,72 +66,13 @@
     });
   }
 
-  // ═══════════════════════════════════════════════════════════════
-  // CSS
-  // ═══════════════════════════════════════════════════════════════
-  function injectCSS() {
-    if (document.getElementById("tibex-sc9-css")) return;
-    var s = document.createElement("style");
-    s.id = "tibex-sc9-css";
-    s.textContent = [
-      ".sc9-modal{position:fixed;inset:0;background:#000;z-index:999999;display:none;flex-direction:column;font-family:-apple-system,'Segoe UI',sans-serif;}",
-      ".sc9-modal.show{display:flex;}",
-      ".sc9-head{height:56px;background:rgba(0,0,0,.92);color:#fff;display:flex;align-items:center;padding:0 16px;gap:10px;flex-shrink:0;}",
-      ".sc9-head h3{flex:1;font-size:15px;font-weight:700;margin:0;}",
-      ".sc9-eng{font-size:10.5px;padding:3px 10px;border-radius:10px;font-weight:700;background:#334155;color:#fff;}",
-      ".sc9-eng.html5{background:#15803d;}",".sc9-eng.zxing{background:#a16207;}",".sc9-eng.native{background:#7c3aed;}",
-      ".sc9-head button{background:rgba(255,255,255,.15);color:#fff;border:none;padding:8px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;}",
-      ".sc9-head button:hover{background:rgba(255,255,255,.25);}",
-      ".sc9-head button.primary{background:#dc2626;}",
-      ".sc9-head button.torch-on{background:#f59e0b;color:#000;}",
-      ".sc9-vw{flex:1;position:relative;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center;}",
-      ".sc9-vw video{width:100%!important;height:100%!important;object-fit:contain;}",
-      ".sc9-vw #sc9Reader{width:100%;height:100%;}",
-      ".sc9-vw #sc9Reader video{width:100%!important;height:100%!important;object-fit:contain;}",
-      ".sc9-overlay{position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center;}",
-      ".sc9-frame{width:78%;max-width:500px;aspect-ratio:16/9;border:3px solid rgba(148,163,184,.6);border-radius:14px;transition:border-color .2s;position:relative;}",
-      ".sc9-frame.detected{border-color:rgba(74,222,128,.95);box-shadow:0 0 40px rgba(74,222,128,.6);}",
-      ".sc9-frame::before{content:'';position:absolute;left:10px;right:10px;height:3px;background:linear-gradient(90deg,transparent,#60a5fa,transparent);animation:sc9Scan 2.2s ease-in-out infinite;border-radius:3px;}",
-      "@keyframes sc9Scan{0%,100%{top:6px;}50%{top:calc(100% - 10px);}}",
-      ".sc9-live{position:absolute;top:20px;left:20px;right:20px;background:rgba(0,0,0,.8);backdrop-filter:blur(8px);border-radius:12px;padding:12px 16px;font-family:ui-monospace,monospace;font-size:13px;color:#fff;max-width:520px;margin:0 auto;display:none;}",
-      ".sc9-live.show{display:block;}",
-      ".sc9-live .fmt{display:inline-block;padding:3px 10px;border-radius:10px;font-weight:700;font-size:11px;background:#334155;margin-right:8px;}",
-      ".sc9-live .fmt.qr{background:#7c3aed;}",
-      ".sc9-live .fmt.barcode{background:#0369a1;}",
-      ".sc9-live .txt{word-break:break-all;line-height:1.5;color:#fff;}",
-      ".sc9-live .db{margin-top:8px;padding:6px 10px;border-radius:6px;font-size:11.5px;display:none;}",
-      ".sc9-live .db.show{display:block;}",
-      ".sc9-live .db.found{background:rgba(34,197,94,.25);color:#4ade80;}",
-      ".sc9-live .db.not-found{background:rgba(239,68,68,.25);color:#f87171;}",
-      ".sc9-status{position:absolute;bottom:20px;left:20px;right:20px;text-align:center;color:#fff;font-size:14px;font-weight:600;text-shadow:0 2px 8px rgba(0,0,0,.9);}",
-      ".sc9-status.ok{color:#4ade80;}",".sc9-status.err{color:#f87171;}",".sc9-status.warn{color:#fbbf24;}",
-      ".sc9-timer{position:absolute;top:16px;right:16px;background:rgba(0,0,0,.7);color:#fbbf24;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:700;font-family:ui-monospace,monospace;display:none;}",
-      ".sc9-timer.show{display:block;}",
-      ".sc9-foot{background:rgba(0,0,0,.92);padding:12px 16px;display:flex;flex-direction:column;gap:8px;flex-shrink:0;}",
-      ".sc9-foot .row{display:flex;gap:8px;align-items:center;}",
-      ".sc9-foot input{flex:1;padding:10px 14px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:14px;font-family:ui-monospace,monospace;outline:none;}",
-      ".sc9-foot input:focus{border-color:#4ade80;}",
-      ".sc9-foot input::placeholder{color:rgba(255,255,255,.45);}",
-      ".sc9-foot .btn{padding:10px 16px;border-radius:8px;border:none;background:#1e40af;color:#fff;font-weight:700;font-size:13px;cursor:pointer;font-family:inherit;}",
-      ".sc9-foot .btn:hover{background:#1e3a8a;}",
-      ".sc9-foot .btn.toggle{padding:8px 12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);}",
-      ".sc9-foot .btn.toggle.active{background:#f59e0b;color:#000;border-color:#f59e0b;}",
-      ".sc9-foot .sel{padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);color:#fff;font-size:12px;font-family:inherit;cursor:pointer;}",
-      ".sc9-foot .sel option{background:#1e293b;color:#fff;}",
-      ".sc9-err{padding:40px 20px;color:#fff;text-align:center;}",
-      ".sc9-err .big{font-size:64px;margin-bottom:20px;}",
-      ".sc9-err .msg{font-size:14px;line-height:1.6;max-width:520px;margin:0 auto;opacity:.9;}",
-      ".sc9-err button{margin-top:20px;padding:12px 24px;border-radius:8px;border:none;background:#1e40af;color:#fff;font-weight:700;cursor:pointer;font-family:inherit;}"
-    ].join("");
-    document.head.appendChild(s);
-  }
+  // CSS: static/css/tibex-smart-camera.css (HTML da <link> orqali; CSP style-src 'self' — JS da style elementi yaratilmaydi)
 
   // ═══════════════════════════════════════════════════════════════
   // MODAL
   // ═══════════════════════════════════════════════════════════════
   function build() {
     if (document.getElementById("tibexSc9Modal")) return;
-    injectCSS();
 
     var m = document.createElement("div");
     m.id = "tibexSc9Modal";
